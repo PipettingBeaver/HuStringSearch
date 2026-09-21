@@ -50,6 +50,47 @@ class SubnetworkResult:
             "parameters": self.parameters,
         }
 
+    def to_cytoscape(self, max_nodes: int = 1500) -> dict[str, Any]:
+        """Payload for the browser graph: seed nodes, ranked nodes, and edges."""
+        seed_set = set(self.seed_ids)
+        nodes: dict[str, dict[str, Any]] = {}
+        for index, seed_id in enumerate(self.seed_ids):
+            label = self.resolved_seeds[index] if index < len(self.resolved_seeds) else seed_id
+            nodes[seed_id] = {"id": seed_id, "label": label, "seed": True}
+        for node in self.ranked[:max_nodes]:
+            nodes.setdefault(
+                node.id, {"id": node.id, "label": node.symbol, "seed": node.id in seed_set}
+            )
+
+        edges: list[dict[str, Any]] = []
+        seen: set[tuple[str, str]] = set()
+        for edge in self.edges:
+            key = (edge["a"], edge["b"])
+            if key in seen or edge["a"] not in nodes or edge["b"] not in nodes:
+                continue
+            seen.add(key)
+            edges.append(
+                {
+                    "id": f"{edge['a']}|{edge['b']}",
+                    "source": edge["a"],
+                    "target": edge["b"],
+                    "weight": edge["weight"],
+                }
+            )
+
+        return {
+            "nodes": list(nodes.values()),
+            "edges": edges,
+            "seed_ids": list(self.seed_ids),
+            "missing_seeds": list(self.missing_seeds),
+            "mode": self.mode,
+            "counts": {
+                "nodes": len(self.ranked),
+                "edges": len(self.edges),
+                "rendered_nodes": len(nodes),
+            },
+        }
+
 
 def resolve_seed_indices(
     graph: Graph,

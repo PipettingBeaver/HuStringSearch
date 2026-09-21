@@ -70,3 +70,16 @@ def test_multi_seed_weights_accepted() -> None:
         top_k=2,
     )
     assert result.resolved_seeds == ["G0", "G3"]
+
+
+def test_to_cytoscape_payload_shape() -> None:
+    result = rank_target_centered(path_graph(), ["G0"], top_k=3)
+    payload = result.to_cytoscape()
+
+    ids = {node["id"] for node in payload["nodes"]}
+    assert "ENSG0" in ids  # seed always included
+    assert payload["seed_ids"] == ["ENSG0"]
+    assert any(node["seed"] for node in payload["nodes"])
+    assert payload["edges"]
+    assert {"id", "source", "target"} <= set(payload["edges"][0])
+    assert payload["counts"]["nodes"] == len(result.ranked)

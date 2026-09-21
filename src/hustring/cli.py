@@ -150,6 +150,25 @@ def serve(
         uvicorn.run(create_app(graph_dir), host=host, port=port)
 
 
+@app.command("gradio")
+def gradio_serve(
+    graph_dir: Path = typer.Option(DEFAULT_GRAPH, "--graph", "-g", help="Graph directory to serve."),
+    host: str = typer.Option("0.0.0.0", help="Bind host."),
+    port: int = typer.Option(7860, help="Bind port."),
+    share: bool = typer.Option(False, help="Create a temporary public Gradio link."),
+) -> None:
+    """Serve the Gradio interface (also used for Hugging Face Spaces)."""
+    try:
+        from .gradio_app import build_demo
+    except ImportError as exc:
+        raise typer.BadParameter(
+            "gradio needs the gradio extra: pip install 'hustring[gradio]'"
+        ) from exc
+
+    typer.echo(f"Serving Gradio app for graph '{graph_dir}' at http://{host}:{port}")
+    build_demo(graph_dir).queue().launch(server_name=host, server_port=port, share=share)
+
+
 def main() -> None:
     app()
 

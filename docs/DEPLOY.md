@@ -30,37 +30,47 @@ On startup the entrypoint runs `hustring fetch-graph`, which downloads and unpac
 the ~5 MB archive. If `HUSTRING_GRAPH_URL` is unset, it falls back to
 `hustring build-data` (controlled by `HUSTRING_AUTO_BUILD`).
 
-## Hugging Face Spaces
+## Hugging Face Spaces (Gradio — free)
+
+> As of 2026, Hugging Face requires a **paid plan** to create Docker or CPU Gradio Spaces.
+> Static Spaces are free, and free personal accounts can host up to **two Gradio Spaces on
+> ZeroGPU**. This project therefore ships a Gradio app.
 
 Prerequisites: a Hugging Face account and an access token with **write** scope
 (https://huggingface.co/settings/tokens).
 
-1. Create a Space: https://huggingface.co/new-space, **SDK = Docker**, any name
+1. Create a Space: https://huggingface.co/new-space, **SDK = Gradio**, any name
    (for example `HuStringSearch`).
-2. Deploy from this repository:
+2. Deploy the app (three small files):
 
    ```fish
    set -x HF_TOKEN hf_xxxxxxxxxxxxxxxxx
-   scripts/deploy_hf.sh <hf-user> <space-name>
+   scripts/deploy_hf_gradio.sh <hf-user> <space-name>
    ```
 
-   The script pushes the current `git HEAD` to the Space, substituting
-   `deploy/huggingface/README.md` (which carries the Space metadata) for the
-   project README.
+   `requirements.txt` installs the package straight from GitHub, so the Space runs the
+   pushed `main`.
 3. In the Space **Settings → Variables and secrets**, add:
 
    ```
    HUSTRING_GRAPH_URL = <your graph release asset URL>
    ```
 
-4. The Space builds the image and, once running, fetches the graph and serves the
-   viewer at `https://huggingface.co/spaces/<hf-user>/<space-name>`.
+   Without it, the Space builds the graph on first use (slower).
+4. Open `https://huggingface.co/spaces/<hf-user>/<space-name>`.
 
 Notes:
-- Free CPU Spaces **sleep after inactivity**; the first request after sleeping
-  restarts the container (a few seconds plus the ~5 MB graph fetch).
-- Persistent storage is a paid feature; without it, fetches repeat per restart,
-  which is why the artifact is kept small.
+- Ranking runs server-side on CPU via the shared analysis module; the graph is drawn in the
+  browser with Cytoscape.js (loaded from a CDN).
+- A no-op ZeroGPU function is defined so the Space is valid on the free tier; it never
+  requests a GPU, so no quota is consumed.
+- Free Spaces **sleep after inactivity**; the first request restarts the container and
+  re-fetches the ~5 MB graph.
+
+### Docker Space (requires a paid plan)
+
+The Docker image also works as a Docker Space (`sdk: docker`, `app_port: 7860`), but that
+needs PRO/Team. Docker remains the recommended path for local use and other container hosts.
 
 ## Google Cloud Run (brief)
 
