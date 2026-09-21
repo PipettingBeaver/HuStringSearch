@@ -7,26 +7,29 @@ Merge multiple protein interactome sources (**HuRI**, **STRING**, **BioGRID**,
 **target-centered Random Walk with Restart (RWR)** to isolate and visualize
 functional subnetworks in an interactive web viewer.
 
-Runs locally, in Docker, or hosted on Hugging Face Spaces. Species is a parameter
+Online version is currently accessible [here](https://huggingface.co/spaces/PipettingBeaver/HuStringSearch) on HuggingFace.
+It also runs locally, in Docker, or on a container host. Species is a parameter
 (NCBI taxon ID) — human is a default, not an assumption.
 
-**Live demo:** https://huggingface.co/spaces/PipettingBeaver/HuStringSearch
-
 ## Status
-Functional end to end: sources, mapping, graph build, RWR, CLI, API, and viewers are
-implemented and tested (see `docs/DECISIONS.md` for the design log). The web UI is
-deliberately **basic** — serviceable for student-level exploration, with room to grow
-(persistent settings, exporters, enrichment overlays, richer node details).
+Early scaffolding and remake. Was a class project remade from ground up to be
+accessible online and as proof of concept for me to learn Docker and online hosting.
+Core RWR + config are implemented and tested; data sources, mapping, API, and UI
+are in progress. See `docs/DECISIONS.md` for more design log info. The web UI is
+deliberately **basic** — serviceable for student-level exploration, with room to grow.
 
 ## Run from scratch (zsh)
 ```zsh
 git clone https://github.com/PipettingBeaver/HuStringSearch.git
 cd HuStringSearch
 python3 -m venv .venv
-source .venv/bin/activate        # fish: source .venv/bin/activate.fish
+# bash/zsh:
+source .venv/bin/activate
+# fish:
+# source .venv/bin/activate.fish
 pip install -e ".[all]"
-hustring build-data              # fetch + merge interactomes (~1 min)
-hustring serve -g data/derived/graph   # viewer at http://127.0.0.1:8000
+hustring build-data                      # fetch + merge interactomes (~1 min)
+hustring serve -g data/derived/graph     # interactive viewer at http://127.0.0.1:8000
 ```
 
 ## Usage
