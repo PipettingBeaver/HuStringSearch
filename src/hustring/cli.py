@@ -113,6 +113,19 @@ def walk(
     typer.echo(f"({len(result.ranked)} nodes, {len(result.edges)} edges)")
 
 
+@app.command("fetch-graph")
+def fetch_graph(
+    url: str = typer.Option(..., "--url", help="URL of a packaged graph .tar.gz (Release asset)."),
+    output: Path = typer.Option(DEFAULT_GRAPH, "--output", "-o", help="Directory to unpack into."),
+) -> None:
+    """Download and unpack a prebuilt graph archive."""
+    from .graph.fetch import fetch_graph_archive
+
+    fetch_graph_archive(url, output)
+    graph = Graph.load(output)
+    typer.echo(f"Fetched {graph.n_nodes} nodes / {graph.n_edges} edges into {output}")
+
+
 @app.command("serve")
 def serve(
     graph_dir: Path = typer.Option(DEFAULT_GRAPH, "--graph", "-g", help="Graph directory to serve."),

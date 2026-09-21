@@ -53,12 +53,15 @@ docker run --rm -p 8000:8000 -v "$PWD/data:/data" hustring
 If `./data/graph/adjacency.npz` already exists it is used and nothing is downloaded.
 
 ### Cloud
-- **Hugging Face Spaces (Docker SDK):** push the repo; set the Space variable `PORT=7860`.
+- **Hugging Face Spaces (Docker SDK):** one command — `HF_TOKEN=hf_xxx scripts/deploy_hf.sh <hf-user> <space-name>` — then set the Space variable `HUSTRING_GRAPH_URL` to the graph Release asset. See `docs/DEPLOY.md`.
 - **Google Cloud Run:** `gcloud run deploy hustring --source . --allow-unauthenticated`
   (Cloud Run injects `PORT`, which the entrypoint honors).
 
-The image honors `HUSTRING_GRAPH`, `HUSTRING_CACHE`, `HUSTRING_WEB_DIR`, `HUSTRING_AUTO_BUILD`,
-and `PORT`.
+On ephemeral hosts, set `HUSTRING_GRAPH_URL` to a graph Release asset so the container downloads
+the ~5 MB prebuilt graph instead of rebuilding it. See `docs/DEPLOY.md`.
+
+The image honors `HUSTRING_GRAPH`, `HUSTRING_CACHE`, `HUSTRING_WEB_DIR`, `HUSTRING_GRAPH_URL`,
+`HUSTRING_AUTO_BUILD`, and `PORT`.
 
 ## Distributing the prebuilt graph
 
