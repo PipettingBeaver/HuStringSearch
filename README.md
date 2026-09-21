@@ -7,63 +7,54 @@ Merge multiple protein interactome sources (**HuRI**, **STRING**, **BioGRID**,
 **target-centered Random Walk with Restart (RWR)** to isolate and visualize
 functional subnetworks in an interactive web viewer.
 
-Runs locally and hosted from one Docker image. Species is a parameter (NCBI
-taxon ID) — human is a default, not an assumption.
+Runs locally, in Docker, or hosted on Hugging Face Spaces. Species is a parameter
+(NCBI taxon ID) — human is a default, not an assumption.
+
+**Live demo:** https://huggingface.co/spaces/PipettingBeaver/HuStringSearch
 
 ## Status
-Early scaffolding. Core RWR + config are implemented and tested; data sources,
-mapping, API, and UI are in progress. See `docs/DECISIONS.md` for the design log.
+Functional end to end: sources, mapping, graph build, RWR, CLI, API, and viewers are
+implemented and tested (see `docs/DECISIONS.md` for the design log). The web UI is
+deliberately **basic** — serviceable for student-level exploration, with room to grow
+(persistent settings, exporters, enrichment overlays, richer node details).
 
-## Quickstart (development)
-```bash
+## Run from scratch (zsh)
+```zsh
+git clone https://github.com/PipettingBeaver/HuStringSearch.git
+cd HuStringSearch
 python3 -m venv .venv
-# bash/zsh:
-source .venv/bin/activate
-# fish:
-# source .venv/bin/activate.fish
+source .venv/bin/activate        # fish: source .venv/bin/activate.fish
 pip install -e ".[all]"
-pytest
+hustring build-data              # fetch + merge interactomes (~1 min)
+hustring serve -g data/derived/graph   # viewer at http://127.0.0.1:8000
 ```
 
 ## Usage
-```bash
+```zsh
 hustring build-data                     # fetch + merge interactomes into a graph artifact
 hustring inspect -g data/derived/graph  # graph size and top hubs
 hustring walk TP53 -g data/derived/graph --top 25
 hustring serve -g data/derived/graph    # interactive viewer at http://127.0.0.1:8000
+hustring gradio -g data/derived/graph   # Gradio viewer (used by the hosted demo)
 ```
 
 If you'd rather not activate the venv, call the entrypoint directly:
 `.venv/bin/hustring serve -g data/derived/graph`.
 
-## Deploy / install
-
-### Docker Compose (one command, local or self-hosted)
+## Docker
+The one-command path (builds the image and runs the viewer, building the graph on
+first start):
 ```bash
 docker compose up --build      # then open http://localhost:8000
 ```
-On first run the container builds the graph (~1–2 min) into the mounted `./data` volume;
-later runs reuse it. Set `HUSTRING_AUTO_BUILD=0` to require a prebuilt graph.
-
-### Single container
+Or a single container:
 ```bash
 docker build -t hustring .
 docker run --rm -p 8000:8000 -v "$PWD/data:/data" hustring
 ```
-If `./data/graph/adjacency.npz` already exists it is used and nothing is downloaded.
-
-### Cloud
-- **Hugging Face Spaces (Gradio, free):** `HF_TOKEN=hf_xxx scripts/deploy_hf_gradio.sh <hf-user> <space-name>`, then set the Space variable `HUSTRING_GRAPH_URL`. See `docs/DEPLOY.md`. (HF now charges for Docker/CPU Gradio Spaces; the Gradio app runs on the free ZeroGPU tier without using GPU quota.)
-- **Google Cloud Run:** `gcloud run deploy hustring --source . --allow-unauthenticated`
-  (Cloud Run injects `PORT`, which the entrypoint honors).
-
-On ephemeral hosts, set `HUSTRING_GRAPH_URL` to a graph Release asset so the container downloads
-the ~5 MB prebuilt graph instead of rebuilding it. See `docs/DEPLOY.md`.
-
-Local Gradio preview: `hustring gradio -g data/derived/graph` (needs `pip install 'hustring[gradio]'`).
-
-The image honors `HUSTRING_GRAPH`, `HUSTRING_CACHE`, `HUSTRING_WEB_DIR`, `HUSTRING_GRAPH_URL`,
-`HUSTRING_AUTO_BUILD`, and `PORT`.
+The graph is stored in the mounted `./data` volume, so later runs reuse it. Set
+`HUSTRING_AUTO_BUILD=0` to require a prebuilt graph instead. See `docs/DEPLOY.md`
+for hosted deployments.
 
 ## Distributing the prebuilt graph
 
@@ -72,10 +63,11 @@ Release asset so a deployment can start without rebuilding:
 
 ```bash
 scripts/package_graph.sh data/derived/graph 2026.09.21
-gh release create 2026.09.21 dist/hustring-graph-2026.09.21.tar.gz \
+gh release create graph-2026.09.21 dist/hustring-graph-2026.09.21.tar.gz \
   --title "Prebuilt human graph (HuRI + STRING)" \
   --notes "ENSG-canonical, STRING combined score >= 700. Unpack into data/derived/graph."
 ```
 
-Unpack into `data/derived/graph` (or point `HUSTRING_GRAPH` at it); the container then skips the
-first-run build. Automating this through CI is a planned improvement.
+Pushing a `graph-*` tag (or running the *Release graph artifact* workflow manually) builds and
+publishes the asset automatically. Unpack it into `data/derived/graph` or point
+`HUSTRING_GRAPH_URL` at it. See `docs/DEPLOY.md`.
