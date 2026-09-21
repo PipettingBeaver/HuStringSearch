@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HuStringSearch</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="/static/vendor/cytoscape.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>HuStringSearch</h1>
+      <span id="graph-stats" class="muted">loading graph…</span>
+      <button id="about" type="button">About HuStringSearch</button>
+    </header>
+
+    <main>
+      <aside class="panel">
+        <h2>Target-centered RWR</h2>
+
+        <label for="seeds">
+          Target gene(s)
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for target gene"
+            data-tip="One or more genes to center the walk on. Use HGNC symbols (e.g. TP53) or Ensembl Gene IDs. Separate multiple targets with commas or spaces. Multiple seeds find the neighborhood they share, which can blur a specific signal if the targets are unrelated."
+            >?</span
+          >
+        </label>
+        <input id="seeds" list="seed-options" placeholder="TP53  or  TP53, MDM2" />
+        <datalist id="seed-options"></datalist>
+
+        <label for="mode">
+          Selection mode
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for selection mode"
+            data-tip="How the subnetwork is chosen from the RWR scores. Top-k = the k highest-scoring nodes. Threshold = every node above a score cutoff. k-hop = all nodes within k edges of the seed(s), ranked by score."
+            >?</span
+          >
+        </label>
+        <select id="mode">
+          <option value="top_k">Top-k by score</option>
+          <option value="threshold">Score threshold</option>
+          <option value="k_hop">k-hop neighborhood</option>
+        </select>
+
+        <label for="top_k">
+          Top-k
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for top-k"
+            data-tip="Number of highest-scoring nodes to return when Selection mode is Top-k. Larger values give a broader network around the target."
+            >?</span
+          >
+        </label>
+        <input id="top_k" type="number" value="50" min="1" max="5000" />
+
+        <label for="threshold">
+          Threshold
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for threshold"
+            data-tip="Score cutoff used when Selection mode is Threshold: include every node scoring above this value. RWR scores are small, so useful cutoffs are often around 1e-4 to 1e-3."
+            >?</span
+          >
+        </label>
+        <input id="threshold" type="number" value="0.001" step="0.0001" min="0" />
+
+        <label for="hops">
+          Hops
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for hops"
+            data-tip="Maximum number of edges from the seed(s) when Selection mode is k-hop. 1 = direct partners, 2 = partners of partners, and so on. Hub targets can expand very quickly, so keep this small."
+            >?</span
+          >
+        </label>
+        <input id="hops" type="number" value="2" min="1" max="10" />
+
+        <label for="restart">
+          Restart probability
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for restart probability"
+            data-field="restart_prob"
+            data-tip="Probability that the walk jumps back to the seed(s) at each step. Higher (e.g. 0.9) keeps scores close to the target; lower (e.g. 0.5) lets the walk diffuse further across the graph."
+            >?</span
+          >
+        </label>
+        <input id="restart" type="number" value="0.85" step="0.05" min="0.01" max="0.99" />
+
+        <label class="row">
+          <input id="exclude" type="checkbox" checked />
+          Exclude seed(s) from ranking
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for excluding seeds"
+            data-tip="When checked, the seed gene(s) are removed from the ranked results so you see their partners instead. They are still highlighted in the network."
+            >?</span
+          >
+        </label>
+
+        <button id="run">Run RWR</button>
+        <p id="status" class="muted"></p>
+        <p class="muted small">
+          Identifiers are Ensembl Gene IDs. Seeds accept HGNC symbols or Ensembl IDs.
+        </p>
+      </aside>
+
+      <section class="results">
+        <div id="cy"></div>
+        <table id="ranked">
+          <thead>
+            <tr><th>Symbol</th><th>Ensembl ID</th><th>Score</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </main>
+
+    <aside id="details" class="details hidden"></aside>
+    <div id="tooltip" class="hidden" role="tooltip"></div>
+
+    <dialog id="about-dialog">
+      <form method="dialog">
+        <h2>About HuStringSearch</h2>
+        <p>
+          HuStringSearch explores protein interaction networks by merging interactome sources
+          and running a <strong>Random Walk with Restart (RWR)</strong> centered on a gene of
+          interest, returning the proteins most closely connected to it.
+        </p>
+        <ul>
+          <li>
+            <strong>Merged interactomes:</strong> combines HuRI (experimental binary map) with
+            STRING confidence-scored associations, and can add BioGRID, IntAct, or your own edge
+            lists.
+          </li>
+          <li>
+            <strong>Shared identifier space:</strong> proteins are mapped to Ensembl Gene IDs, with
+            species-general support (any NCBI taxon), so sources merge cleanly.
+          </li>
+          <li>
+            <strong>Target-centered subnetworks:</strong> ranks every node by network proximity to
+            the target(s) and extracts a subnetwork by top-k, score threshold, or k-hop.
+          </li>
+          <li>
+            <strong>Interactive viewer:</strong> search a gene, tune the walk, and explore the
+            resulting network, ranked partners, and edge weights.
+          </li>
+          <li>
+            <strong>Runs anywhere:</strong> locally through the CLI or this browser UI, or hosted
+            from a single Docker image.
+          </li>
+        </ul>
+        <p class="muted small">
+          Current build: merged Human HuRI + STRING network. Additional species and sources are
+          supported by the build pipeline.
+        </p>
+        <button value="close" class="close-btn" type="submit">Close</button>
+      </form>
+    </dialog>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+
+# Vendored third-party frontend code (kept out of language stats)
+web/vendor/* linguist-vendored

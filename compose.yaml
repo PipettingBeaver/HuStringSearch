@@ -1,0 +1,16 @@
+services:
+  hustring:
+    build:
+      context: .
+    image: hustring:latest
+    container_name: hustring
+    ports:
+      - "8000:8000"
+    environment:
+      HUSTRING_GRAPH: /data/graph
+      HUSTRING_CACHE: /data/cache
+      HUSTRING_AUTO_BUILD: "1"
+      PORT: "8000"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

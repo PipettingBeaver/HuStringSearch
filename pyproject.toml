@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hustring"
+version = "0.0.1"
+description = "Merge interactome sources (HuRI, STRING, BioGRID, IntAct) and run target-centered Random Walk with Restart subnetworks, with an interactive web viewer."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "PipettingBeaver" }]
+keywords = ["interactome", "ppi", "rwr", "string", "huri", "network-biology"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+  "numpy>=2.1",
+  "scipy>=1.14",
+  "pandas>=2.2.3",
+  "pyarrow>=18",
+  "requests>=2.32",
+  "pydantic>=2.9",
+  "typer>=0.15",
+]
+
+[project.optional-dependencies]
+web = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff>=0.8",
+  "mypy>=1.13",
+  "types-requests>=2.32",
+  "httpx2>=0.1",
+]
+all = ["hustring[web,dev]"]
+
+[project.scripts]
+hustring = "hustring.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hustring"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"web" = "hustring/web"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/hustring/cli.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+packages = ["hustring"]
+
+[[tool.mypy.overrides]]
+module = ["scipy.*", "pandas.*", "pyarrow.*", "typer.*", "fastapi.*", "uvicorn.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
