@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .._typing import Array
 from ..errors import SeedError
 
 
@@ -75,7 +76,7 @@ def restart_vector(
     n_nodes: int,
     seed_indices: Sequence[int],
     seed_weights: Sequence[float] | None = None,
-) -> np.ndarray:
+) -> Array:
     """Build a normalized restart distribution over ``n_nodes``."""
     if not seed_indices:
         raise SeedError("at least one seed index is required")

@@ -14,17 +14,18 @@ from typing import TypeAlias
 import numpy as np
 import scipy.sparse as sp
 
+from .._typing import Array
 from ..errors import GraphError
 
 Matrix: TypeAlias = sp.spmatrix
 
 
 def top_k_nodes(
-    scores: np.ndarray,
+    scores: Array,
     k: int,
     *,
     exclude: Sequence[int] = (),
-) -> np.ndarray:
+) -> Array:
     """Indices of the ``k`` highest-scoring nodes (descending score)."""
     if k <= 0:
         raise GraphError("k must be positive")
@@ -41,11 +42,11 @@ def top_k_nodes(
 
 
 def threshold_nodes(
-    scores: np.ndarray,
+    scores: Array,
     threshold: float,
     *,
     exclude: Sequence[int] = (),
-) -> np.ndarray:
+) -> Array:
     """Indices scoring strictly above ``threshold`` (descending score)."""
     values = np.asarray(scores, dtype=np.float64)
     mask = values > threshold
@@ -61,7 +62,7 @@ def k_hop_nodes(
     hops: int,
     *,
     undirected: bool = True,
-) -> np.ndarray:
+) -> Array:
     """Nodes reachable from the seed(s) within ``hops`` edges."""
     if hops < 0:
         raise GraphError("hops must be >= 0")
@@ -86,8 +87,8 @@ def k_hop_nodes(
 
 def induced_edges(
     adjacency: Matrix,
-    nodes: Sequence[int] | np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    nodes: Sequence[int] | Array,
+) -> tuple[Array, Array, Array]:
     """Upper-triangular edges (row, col, weight) whose endpoints are both in ``nodes``."""
     graph = sp.csr_matrix(adjacency)
     upper = sp.triu(graph, k=1).tocoo()

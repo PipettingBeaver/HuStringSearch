@@ -12,6 +12,7 @@ import pandas as pd
 import scipy.sparse as sp
 from scipy.sparse import csgraph
 
+from .._typing import Array
 from ..config import BuildConfig, DedupePolicy, NodeGranularity, SourceConfig, WeightNormalization
 from ..errors import GraphError
 from ..mapping.resolver import IdentifierResolver
@@ -204,7 +205,7 @@ def _adjacency(
     return sp.csr_matrix((data, (rows, cols)), shape=(n_nodes, n_nodes))
 
 
-def _filter_nodes(adjacency: sp.csr_matrix, config: BuildConfig) -> np.ndarray:
+def _filter_nodes(adjacency: sp.csr_matrix, config: BuildConfig) -> Array:
     n_nodes = adjacency.shape[0]
     keep = np.ones(n_nodes, dtype=bool)
     if config.min_node_degree > 0:

@@ -20,6 +20,7 @@ from typing import TypeAlias
 import numpy as np
 import scipy.sparse as sp
 
+from .._typing import Array
 from ..config import RWRConfig
 from ..errors import ConfigError
 
@@ -64,14 +65,14 @@ def build_transition_matrix(
 
 def random_walk_with_restart(
     adjacency: Matrix,
-    restart_vector: Sequence[float] | np.ndarray,
+    restart_vector: Sequence[float] | Array,
     *,
     config: RWRConfig | None = None,
-) -> np.ndarray:
+) -> Array:
     """Return steady-state RWR scores for a prebuilt restart distribution."""
     cfg = config or RWRConfig()
     n = adjacency.shape[0]
-    p0 = np.asarray(restart_vector, dtype=np.float64).ravel()
+    p0: Array = np.asarray(restart_vector, dtype=np.float64).ravel()
     if p0.shape[0] != n:
         raise ConfigError(f"restart vector length {p0.shape[0]} != graph size {n}")
     total = float(p0.sum())
@@ -85,9 +86,9 @@ def random_walk_with_restart(
         self_loop_isolated=cfg.self_loop_isolated,
     )
     r = cfg.restart_prob
-    scores = p0.copy()
+    scores: Array = p0.copy()
     for _ in range(cfg.max_iter):
-        nxt = (1.0 - r) * np.asarray(transition @ scores) + r * p0
+        nxt: Array = (1.0 - r) * np.asarray(transition @ scores) + r * p0
         if float(np.abs(nxt - scores).sum()) < cfg.tol:
             return nxt
         scores = nxt
@@ -100,7 +101,7 @@ def rwr(
     seed_weights: Sequence[float] | None = None,
     *,
     config: RWRConfig | None = None,
-) -> np.ndarray:
+) -> Array:
     """Convenience wrapper: build the restart vector from seed indices, then walk."""
     from .seeds import restart_vector
 
