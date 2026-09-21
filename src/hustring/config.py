@@ -7,7 +7,7 @@ UI. ``describe()`` extracts those descriptions for the frontend.
 
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -16,7 +16,7 @@ from .errors import ConfigError
 from .species import default_sources_for, lookup_species
 
 
-class NodeGranularity(StrEnum):
+class NodeGranularity(str, Enum):
     """Whether nodes are genes, proteins/isoforms, or left as provided."""
 
     GENE = "gene"
@@ -24,7 +24,7 @@ class NodeGranularity(StrEnum):
     AS_PROVIDED = "as_provided"
 
 
-class DedupePolicy(StrEnum):
+class DedupePolicy(str, Enum):
     """How to combine parallel edges between the same node pair."""
 
     MAX = "max"
@@ -32,7 +32,7 @@ class DedupePolicy(StrEnum):
     MEAN = "mean"
 
 
-class WeightNormalization(StrEnum):
+class WeightNormalization(str, Enum):
     """Optional rescaling of merged edge weights before RWR."""
 
     NONE = "none"

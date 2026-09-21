@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -99,7 +99,7 @@ def build_graph(
         annotations.get(node_id, (None, None))[1] or "" for node_id in node_ids
     ]
     manifest = {
-        "created": datetime.now(UTC).isoformat(),
+        "created": datetime.now(timezone.utc).isoformat(),
         "config": config.model_dump(mode="json"),
         "sources": source_info,
         "unmapped_edges": unmapped_total,

@@ -7,7 +7,7 @@ name = "hustring"
 version = "0.0.1"
 description = "Merge interactome sources (HuRI, STRING, BioGRID, IntAct) and run target-centered Random Walk with Restart subnetworks, with an interactive web viewer."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "PipettingBeaver" }]
 keywords = ["interactome", "ppi", "rwr", "string", "huri", "network-biology"]
@@ -55,7 +55,7 @@ packages = ["src/hustring"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py310"
 src = ["src", "tests"]
 
 [tool.ruff.lint]

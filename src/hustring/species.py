@@ -7,12 +7,12 @@ still accepted, in which case the Ensembl division must be supplied explicitly.
 
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict
 
 
-class EnsemblDivision(StrEnum):
+class EnsemblDivision(str, Enum):
     """Which Ensembl BioMart (division) hosts a species' identifier mapping."""
 
     ENSEMBL = "ensembl"

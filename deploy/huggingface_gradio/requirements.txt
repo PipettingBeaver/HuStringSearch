@@ -1,2 +1,1 @@
 hustring[gradio] @ git+https://github.com/PipettingBeaver/HuStringSearch@main
-spaces
