@@ -16,15 +16,29 @@ from .graph.container import Graph
 
 SelectionMode = Literal["top_k", "threshold", "k_hop"]
 
+SOURCE_COLORS: dict[str, str] = {
+    "huri": "#ff5d73",
+    "string": "#4aa3ff",
+    "both": "#a06bff",
+    "other": "#8b96ad",
+    "unknown": "#8b96ad",
+}
+
 
 @dataclass(slots=True)
 class RankedNode:
     id: str
     symbol: str
     score: float
+    source_class: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
-        return {"id": self.id, "symbol": self.symbol, "score": self.score}
+        return {
+            "id": self.id,
+            "symbol": self.symbol,
+            "score": self.score,
+            "source_class": self.source_class,
+        }
 
 
 @dataclass(slots=True)
@@ -35,15 +49,23 @@ class SubnetworkResult:
     seed_ids: list[str]
     mode: SelectionMode
     ranked: list[RankedNode]
+    seed_source_classes: list[str] = field(default_factory=list)
     edges: list[dict[str, Any]] = field(default_factory=list)
     parameters: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        seed_nodes = [
+            {"id": seed_id, "label": label, "source_class": source_class}
+            for seed_id, label, source_class in zip(
+                self.seed_ids, self.resolved_seeds, self.seed_source_classes, strict=False
+            )
+        ]
         return {
             "seeds": self.seeds,
             "resolved_seeds": self.resolved_seeds,
             "missing_seeds": self.missing_seeds,
             "seed_ids": self.seed_ids,
+            "seed_nodes": seed_nodes,
             "mode": self.mode,
             "ranked": [node.to_dict() for node in self.ranked],
             "edges": self.edges,
@@ -56,10 +78,28 @@ class SubnetworkResult:
         nodes: dict[str, dict[str, Any]] = {}
         for index, seed_id in enumerate(self.seed_ids):
             label = self.resolved_seeds[index] if index < len(self.resolved_seeds) else seed_id
-            nodes[seed_id] = {"id": seed_id, "label": label, "seed": True}
+            source_class = (
+                self.seed_source_classes[index]
+                if index < len(self.seed_source_classes)
+                else "unknown"
+            )
+            nodes[seed_id] = {
+                "id": seed_id,
+                "label": label,
+                "seed": True,
+                "source_class": source_class,
+                "color": SOURCE_COLORS.get(source_class, SOURCE_COLORS["unknown"]),
+            }
         for node in self.ranked[:max_nodes]:
             nodes.setdefault(
-                node.id, {"id": node.id, "label": node.symbol, "seed": node.id in seed_set}
+                node.id,
+                {
+                    "id": node.id,
+                    "label": node.symbol,
+                    "seed": node.id in seed_set,
+                    "source_class": node.source_class,
+                    "color": SOURCE_COLORS.get(node.source_class, SOURCE_COLORS["unknown"]),
+                },
             )
 
         edges: list[dict[str, Any]] = []
@@ -164,7 +204,12 @@ def rank_target_centered(
         raise SeedError(f"unknown selection mode '{mode}'")
 
     ranked = [
-        RankedNode(id=graph.node_ids[int(i)], symbol=graph.symbols[int(i)], score=float(scores[int(i)]))
+        RankedNode(
+            id=graph.node_ids[int(i)],
+            symbol=graph.symbols[int(i)],
+            score=float(scores[int(i)]),
+            source_class=graph.source_class_of(graph.node_ids[int(i)]),
+        )
         for i in selected
     ]
 
@@ -195,6 +240,7 @@ def rank_target_centered(
         resolved_seeds=resolved,
         missing_seeds=missing,
         seed_ids=[graph.node_ids[int(i)] for i in indices],
+        seed_source_classes=[graph.source_class_of(graph.node_ids[int(i)]) for i in indices],
         mode=mode,
         ranked=ranked,
         edges=edges,

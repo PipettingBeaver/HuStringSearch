@@ -11,6 +11,7 @@ import scipy.sparse as sp
 
 from hustring.errors import GraphError
 from hustring.graph import Graph
+from hustring.graph.container import classify_sources, derive_node_sources
 
 
 def tiny_graph() -> Graph:
@@ -43,3 +44,31 @@ def test_shape_mismatch_rejected() -> None:
     adjacency = sp.csr_matrix((3, 3))
     with pytest.raises(GraphError):
         Graph(["G1"], ["A"], [""], adjacency, pd.DataFrame())
+
+
+def test_derive_node_sources_and_classification() -> None:
+    edges = pd.DataFrame(
+        {
+            "a": ["G1", "G1", "G2"],
+            "b": ["G2", "G3", "G3"],
+            "weight": [1.0, 1.0, 1.0],
+            "source": ["huri", "huri|string", "string"],
+        }
+    )
+    sources = derive_node_sources(edges, ["G1", "G2", "G3"])
+    assert sources == ["huri|string", "huri|string", "huri|string"]
+    assert classify_sources("huri") == "huri"
+    assert classify_sources("string") == "string"
+    assert classify_sources("huri|string") == "both"
+    assert classify_sources("") == "unknown"
+
+
+def test_graph_exposes_source_class_from_edges() -> None:
+    adjacency = sp.csr_matrix(np.array([[0.0, 1.0], [1.0, 0.0]]))
+    edges = pd.DataFrame(
+        {"a": ["G1"], "b": ["G2"], "weight": [1.0], "source": ["huri|string"]}
+    )
+    graph = Graph(["G1", "G2"], ["A", "B"], ["", ""], adjacency, edges, {})
+    assert graph.node_sources == ["huri|string", "huri|string"]
+    assert graph.source_class_of("G1") == "both"
+    assert graph.source_class_of("missing") == "unknown"

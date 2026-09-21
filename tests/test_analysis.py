@@ -83,3 +83,4 @@ def test_to_cytoscape_payload_shape() -> None:
     assert payload["edges"]
     assert {"id", "source", "target"} <= set(payload["edges"][0])
     assert payload["counts"]["nodes"] == len(result.ranked)
+    assert all("color" in node and "source_class" in node for node in payload["nodes"])

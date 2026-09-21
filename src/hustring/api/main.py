@@ -36,6 +36,13 @@ class RankedNodeModel(BaseModel):
     id: str
     symbol: str
     score: float
+    source_class: str = "unknown"
+
+
+class SeedNodeModel(BaseModel):
+    id: str
+    label: str
+    source_class: str = "unknown"
 
 
 class EdgeModel(BaseModel):
@@ -49,6 +56,7 @@ class SubnetworkResponse(BaseModel):
     resolved_seeds: list[str]
     missing_seeds: list[str]
     seed_ids: list[str]
+    seed_nodes: list[SeedNodeModel]
     mode: str
     ranked: list[RankedNodeModel]
     edges: list[EdgeModel]

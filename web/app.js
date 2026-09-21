@@ -205,15 +205,42 @@ function renderTable(result) {
   }
 }
 
+function colorFor(sourceClass) {
+  switch (sourceClass) {
+    case "huri":
+      return "#ff5d73";
+    case "string":
+      return "#4aa3ff";
+    case "both":
+      return "#a06bff";
+    default:
+      return "#8b96ad";
+  }
+}
+
 function renderGraph(result) {
   const nodes = new Map();
+  const seeds = result.seed_nodes || [];
+  for (const seed of seeds) {
+    nodes.set(seed.id, {
+      id: seed.id,
+      symbol: seed.label || seed.id,
+      seed: true,
+      color: colorFor(seed.source_class),
+      sourceClass: seed.source_class,
+    });
+  }
   for (let i = 0; i < result.seed_ids.length; i += 1) {
     const id = result.seed_ids[i];
-    nodes.set(id, {
-      id,
-      symbol: result.resolved_seeds[i] || id,
-      seed: true,
-    });
+    if (!nodes.has(id)) {
+      nodes.set(id, {
+        id,
+        symbol: result.resolved_seeds[i] || id,
+        seed: true,
+        color: "#8b96ad",
+        sourceClass: "unknown",
+      });
+    }
   }
 
   let ranked = result.ranked;
@@ -222,13 +249,25 @@ function renderGraph(result) {
   }
   for (const node of ranked) {
     if (!nodes.has(node.id)) {
-      nodes.set(node.id, { id: node.id, symbol: node.symbol, seed: false });
+      nodes.set(node.id, {
+        id: node.id,
+        symbol: node.symbol,
+        seed: false,
+        color: colorFor(node.source_class),
+        sourceClass: node.source_class,
+      });
     }
   }
 
   const ids = new Set(nodes.keys());
   const elements = [...nodes.values()].map((node) => ({
-    data: { id: node.id, label: node.symbol, seed: node.seed },
+    data: {
+      id: node.id,
+      label: node.symbol,
+      seed: node.seed,
+      color: node.color,
+      source_class: node.sourceClass,
+    },
   }));
   const seen = new Set();
   for (const edge of result.edges) {
@@ -253,7 +292,7 @@ function renderGraph(result) {
       {
         selector: "node",
         style: {
-          "background-color": "#4aa3ff",
+          "background-color": "data(color)",
           label: "data(label)",
           "font-size": 9,
           color: "#c9d4e6",
@@ -266,13 +305,12 @@ function renderGraph(result) {
       {
         selector: "node[?seed]",
         style: {
-          "background-color": "#ff5d73",
-          width: 34,
-          height: 34,
+          width: 32,
+          height: 32,
           "font-size": 12,
           color: "#ffffff",
-          "border-width": 2,
-          "border-color": "#ffd0d7",
+          "border-width": 3,
+          "border-color": "#ffffff",
         },
       },
       {
@@ -332,6 +370,11 @@ function showDetails(data) {
     const seed = document.createElement("div");
     seed.textContent = "seed";
     panel.appendChild(seed);
+  }
+  if (data.source_class) {
+    const source = document.createElement("div");
+    source.textContent = `source: ${data.source_class}`;
+    panel.appendChild(source);
   }
   panel.classList.remove("hidden");
 }

@@ -44,7 +44,21 @@ Explore protein interaction networks by merging interactome sources and running 
 - **Target-centered subnetworks:** ranked by network proximity; select by top-k,
   score threshold, or k-hop.
 
+Node colors show where each protein is observed: **HuRI** (red), **STRING** (blue),
+or **both** (purple).
+
 Built by PipettingBeaver · MIT licensed.
+"""
+
+LEGEND_HTML = """
+<div style="display:flex;gap:1rem;font-size:0.78rem;color:#8b96ad;margin-bottom:0.25rem">
+  <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;
+    background:#ff5d73;margin-right:0.3rem"></span>HuRI</span>
+  <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;
+    background:#4aa3ff;margin-right:0.3rem"></span>STRING</span>
+  <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;
+    background:#a06bff;margin-right:0.3rem"></span>Both</span>
+</div>
 """
 
 DRAW_JS_TEMPLATE = """
@@ -70,7 +84,8 @@ DRAW_JS_TEMPLATE = """
   load().then(() => {
     const elements = [];
     for (const node of payload.nodes) {
-      elements.push({ data: { id: node.id, label: node.label, seed: node.seed } });
+      elements.push({ data: { id: node.id, label: node.label, seed: node.seed,
+                              color: node.color, source_class: node.source_class } });
     }
     for (const edge of payload.edges) {
       elements.push({ data: { id: edge.id, source: edge.source, target: edge.target } });
@@ -82,12 +97,12 @@ DRAW_JS_TEMPLATE = """
       wheelSensitivity: 0.2,
       style: [
         { selector: 'node', style: {
-            'background-color': '#4aa3ff', label: 'data(label)', 'font-size': 9,
+            'background-color': 'data(color)', label: 'data(label)', 'font-size': 9,
             color: '#c9d4e6', 'text-valign': 'bottom', 'text-margin-y': 3,
             width: 16, height: 16 } },
         { selector: 'node[?seed]', style: {
-            'background-color': '#ff5d73', width: 32, height: 32, 'font-size': 12,
-            color: '#ffffff', 'border-width': 2, 'border-color': '#ffd0d7' } },
+            width: 32, height: 32, 'font-size': 12, color: '#ffffff',
+            'border-width': 3, 'border-color': '#ffffff' } },
         { selector: 'edge', style: {
             width: 1, 'line-color': '#33405f', 'curve-style': 'haystack', opacity: 0.5 } }
       ],
@@ -129,6 +144,7 @@ def compute_subnetwork(
     threshold: float,
     hops: float,
     restart: float,
+    exclude_seeds: bool,
 ) -> tuple[dict[str, Any], list[list[str]], str]:
     """Run the walk and return (cytoscape payload, table rows, status text)."""
     seeds = [token for token in re.split(r"[,\s]+", seeds_text or "") if token]
@@ -145,6 +161,7 @@ def compute_subnetwork(
             top_k=int(top_k),
             threshold=float(threshold),
             hops=int(hops),
+            exclude_seeds=bool(exclude_seeds),
         )
     except SeedError as exc:
         return empty, [], f"No matching target: {exc}"
@@ -172,7 +189,8 @@ def build_demo(graph_dir: str | Path | None = None) -> gr.Blocks:
                 seeds = gr.Textbox(
                     label="Target gene(s)",
                     placeholder="TP53  or  TP53, MDM2",
-                    info="HGNC symbols or Ensembl Gene IDs; separate multiple with commas.",
+                    info="HGNC symbols or Ensembl Gene IDs; separate multiple with commas. "
+                    "Multiple seeds find the neighborhood they share.",
                 )
                 mode = gr.Dropdown(
                     choices=[
@@ -182,7 +200,8 @@ def build_demo(graph_dir: str | Path | None = None) -> gr.Blocks:
                     ],
                     value="top_k",
                     label="Selection mode",
-                    info="How the subnetwork is chosen from the RWR scores.",
+                    info="Top-k = highest-scoring nodes; Threshold = all nodes above a cutoff; "
+                    "k-hop = everything within k edges of the seed(s).",
                 )
                 top_k = gr.Slider(
                     1, 500, value=50, step=1, label="Top-k",
@@ -190,19 +209,29 @@ def build_demo(graph_dir: str | Path | None = None) -> gr.Blocks:
                 )
                 threshold = gr.Number(
                     value=0.001, label="Threshold",
-                    info="Include nodes scoring above this value (Threshold mode).",
+                    info="Include nodes scoring above this value (Threshold mode). Useful "
+                    "cutoffs are often 1e-4 to 1e-3.",
                 )
                 hops = gr.Slider(
                     1, 6, value=2, step=1, label="Hops",
-                    info="Maximum edges from the seed(s) (k-hop mode).",
+                    info="Maximum edges from the seed(s) (k-hop mode). Hub targets expand "
+                    "very quickly, so keep this small.",
                 )
                 restart = gr.Slider(
                     0.1, 0.99, value=0.85, step=0.01, label="Restart probability",
-                    info="Higher keeps scores near the target; lower diffuses further.",
+                    info="Probability the walk jumps back to the seed(s) each step. Higher "
+                    "keeps scores near the target; lower diffuses further.",
+                )
+                exclude = gr.Checkbox(
+                    value=True,
+                    label="Exclude seed(s) from ranking",
+                    info="Remove the seed gene(s) from the ranked results so you see their "
+                    "partners. They stay highlighted in the network.",
                 )
                 run = gr.Button("Run RWR", variant="primary")
                 status = gr.Markdown("")
             with gr.Column(scale=2):
+                gr.HTML(LEGEND_HTML)
                 gr.HTML(
                     '<div id="hu-cy" style="height:480px;width:100%;'
                     'background:#171e2e;border:1px solid #26304a;border-radius:8px"></div>'
@@ -216,7 +245,7 @@ def build_demo(graph_dir: str | Path | None = None) -> gr.Blocks:
 
         run.click(
             fn=lambda *args: compute_subnetwork(get_graph(), *args),
-            inputs=[seeds, mode, top_k, threshold, hops, restart],
+            inputs=[seeds, mode, top_k, threshold, hops, restart, exclude],
             outputs=[payload, table, status],
         ).then(fn=None, inputs=[payload], outputs=[], js=DRAW_JS)
 
