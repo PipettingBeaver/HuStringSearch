@@ -133,3 +133,14 @@ is prepopulated (e.g. a persisted volume or baked separately).
 container (overkill).
 **Note:** Docker is not installed on the dev machine, so the image build itself is unverified; the
 entrypoint and wheel contents were validated directly.
+
+## D15 — Prebuilt graph ships as a Release asset, not in git
+**Context:** The two-tier design wants a prebuilt artifact, but committing derived data to `main`
+causes churn and staleness.
+**Decision:** Distribute the merged graph as a versioned GitHub Release asset (tar.gz + sha256)
+produced by `scripts/package_graph.sh`. `main` stays code-only; a deployment can unpack the asset
+into `HUSTRING_GRAPH` and skip the first-run build.
+**Why:** Clean history, artifact updates independent of code, and fast cold starts.
+**Alternatives:** commit directly (history bloat, stale); Git LFS (extra infra); DVC (heavier).
+**Revisit when:** CI can build/publish the artifact, or we adopt data versioning. Tracked in
+`docs/TECH_DEBT.md`.

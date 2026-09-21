@@ -57,3 +57,18 @@ If `./data/graph/adjacency.npz` already exists it is used and nothing is downloa
 
 The image honors `HUSTRING_GRAPH`, `HUSTRING_CACHE`, `HUSTRING_WEB_DIR`, `HUSTRING_AUTO_BUILD`,
 and `PORT`.
+
+## Distributing the prebuilt graph
+
+The merged graph is derived data and is **not committed** to `main`. Publish it as a GitHub
+Release asset so a deployment can start without rebuilding:
+
+```bash
+scripts/package_graph.sh data/derived/graph 2026.09.21
+gh release create 2026.09.21 dist/hustring-graph-2026.09.21.tar.gz \
+  --title "Prebuilt human graph (HuRI + STRING)" \
+  --notes "ENSG-canonical, STRING combined score >= 700. Unpack into data/derived/graph."
+```
+
+Unpack into `data/derived/graph` (or point `HUSTRING_GRAPH` at it); the container then skips the
+first-run build. See `docs/TECH_DEBT.md` for the plan to automate this.
