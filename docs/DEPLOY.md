@@ -80,3 +80,20 @@ gcloud run deploy hustring --source . --allow-unauthenticated \
 ```
 
 Cloud Run injects `PORT`, so no extra configuration is needed.
+
+## Troubleshooting
+
+- **The graph release workflow didn't run.** Tag-push workflows are read from the *tagged
+  commit*, so a tag pointing at a commit older than `.github/workflows/release-graph.yml` will
+  not trigger it. Move the tag onto current `main`:
+
+  ```fish
+  git tag -f -a graph-<version> -m "Prebuilt graph"
+  git push --force origin graph-<version>
+  ```
+
+  Alternatively, run the workflow manually from the repository's **Actions** tab
+  (`Release graph artifact` → *Run workflow*), which takes a version input.
+- **Space shows no graph / health fails.** Confirm `HUSTRING_GRAPH_URL` is set and the asset is
+  reachable: `curl -sIL <url> | grep -i http` should show `200`.
+
