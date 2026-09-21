@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - "graph-*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version label, e.g. 2026.09.21 (creates tag graph-<version>)"
+        required: true
 
 permissions:
   contents: write
@@ -33,20 +38,31 @@ jobs:
       - name: Build graph
         run: hustring build-data --output data/derived/graph --cache data/cache
 
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="graph-${{ inputs.version }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Package
         run: |
-          VERSION="${GITHUB_REF_NAME#graph-}"
-          scripts/package_graph.sh data/derived/graph "${VERSION}"
+          VERSION="${{ steps.tag.outputs.tag }}"
+          scripts/package_graph.sh data/derived/graph "${VERSION#graph-}"
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${{ steps.tag.outputs.tag }}"
           if gh release view "${TAG}" >/dev/null 2>&1; then
             gh release upload "${TAG}" dist/* --clobber
           else
             gh release create "${TAG}" dist/* \
+              --target "${{ github.sha }}" \
               --title "Prebuilt graph ${TAG#graph-}" \
-              --notes "Auto-built merged interactome graph (HuRI + STRING>=700, ENSG-canonical). Unpack into data/derived/graph or point HUSTRING_GRAPH at it."
+              --notes "Auto-built merged interactome graph (HuRI + STRING>=700, ENSG-canonical). Unpack into data/derived/graph or point HUSTRING_GRAPH_URL at it."
           fi
