@@ -13,6 +13,7 @@ authors = [{ name = "PipettingBeaver" }]
 keywords = ["interactome", "ppi", "rwr", "string", "huri", "network-biology"]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [

@@ -142,5 +142,4 @@ produced by `scripts/package_graph.sh`. `main` stays code-only; a deployment can
 into `HUSTRING_GRAPH` and skip the first-run build.
 **Why:** Clean history, artifact updates independent of code, and fast cold starts.
 **Alternatives:** commit directly (history bloat, stale); Git LFS (extra infra); DVC (heavier).
-**Revisit when:** CI can build/publish the artifact, or we adopt data versioning. Tracked in
-`docs/TECH_DEBT.md`.
+**Revisit when:** CI can build/publish the artifact, or we adopt data versioning.

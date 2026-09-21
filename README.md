@@ -71,4 +71,4 @@ gh release create 2026.09.21 dist/hustring-graph-2026.09.21.tar.gz \
 ```
 
 Unpack into `data/derived/graph` (or point `HUSTRING_GRAPH` at it); the container then skips the
-first-run build. See `docs/TECH_DEBT.md` for the plan to automate this.
+first-run build. Automating this through CI is a planned improvement.

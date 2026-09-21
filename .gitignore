@@ -17,3 +17,6 @@ data/derived/
 *.parquet
 *.npz
 build_manifest.json
+
+# Private working notes (kept local, not published)
+docs/TECH_DEBT.md
