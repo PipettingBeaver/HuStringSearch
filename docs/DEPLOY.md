@@ -1,87 +1,96 @@
 # Deploying HuStringSearch
 
-HuStringSearch ships as a single Docker image, so any container host works. The image is the
-unit of deployment: build it once, run it locally, on Render, Cloud Run, or a self-hosted
-machine, and behavior is identical.
+HuStringSearch ships as one Docker image. So any container host can run it. The image is the
+unit of deployment. Build it one time. Then you can run it locally, on Render, on Cloud Run, or
+on your own machine. The behavior is the same in all cases.
 
-> **Note on Hugging Face:** earlier revisions included a Gradio front-end for Hugging Face's
-> free tier. That was retired to keep a single UI and backend (see `docs/DECISIONS.md`).
-> Hugging Face now charges for Docker Spaces, so Render is the recommended free host.
+> **Note about Hugging Face:** An earlier revision included a Gradio front-end for the Hugging
+> Face free tier. We removed it to keep one UI and one backend. See `docs/DECISIONS.md`. Hugging
+> Face now charges for Docker Spaces. So Render is the recommended free host.
+
+This file uses an adapted form of ASD-STE100 Simplified Technical English. We keep the rules
+that help the reader. We do not follow the full controlled dictionary.
 
 ## What the container needs
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `8000` | Port to bind (injected by most hosts) |
-| `HUSTRING_GRAPH` | `/data/graph` | Where the built graph lives |
-| `HUSTRING_CACHE` | `/data/cache` | Where raw downloads are cached |
-| `HUSTRING_GRAPH_URL` | unset | Fetch a prebuilt graph archive instead of building |
-| `HUSTRING_AUTO_BUILD` | `1` | Build the graph on first run if missing |
+| `PORT` | `8000` | The port to bind. Most hosts supply this value. |
+| `HUSTRING_GRAPH` | `/data/graph` | The directory of the built graph. |
+| `HUSTRING_CACHE` | `/data/cache` | The directory of the raw download cache. |
+| `HUSTRING_GRAPH_URL` | unset | Get a prebuilt graph archive. Do not build the graph. |
+| `HUSTRING_AUTO_BUILD` | `1` | Build the graph on the first run if it is absent. |
 
-Startup logic (`docker/entrypoint.sh`): if there is no graph, fetch `HUSTRING_GRAPH_URL` or
-build one; then serve on `$PORT`.
+Startup logic (`docker/entrypoint.sh`): If there is no graph, the script gets the graph from
+`HUSTRING_GRAPH_URL` or it builds one. Then it serves on `$PORT`.
 
 ## Prebuilt graph
 
-Hosts with ephemeral storage (Render free, Cloud Run) restart with an empty filesystem, so
-building the graph on every cold start is wasteful. Publish it once as a GitHub Release asset
-and point `HUSTRING_GRAPH_URL` at it:
+Some hosts use ephemeral storage. Render free and Cloud Run are examples. These hosts restart
+with an empty filesystem. So a build on each cold start wastes time. Publish the graph one time
+as a GitHub Release asset. Then point `HUSTRING_GRAPH_URL` at it.
 
-1. Publish (automatically on a `graph-*` tag, or manually):
+1. Publish the asset. You can do this automatically with a `graph-*` tag, or manually:
 
    ```bash
-   scripts/package_graph.sh data/derived/graph 2026.09.21
-   gh release create graph-2026.09.21 dist/hustring-graph-2026.09.21.tar.gz \
+   scripts/package_graph.sh data/derived/graph 2026.09.22
+   gh release create graph-2026.09.22 dist/hustring-graph-2026.09.22.tar.gz \
      --title "Prebuilt human graph (HuRI + STRING)"
    ```
 
 2. Use the asset URL:
 
    ```
-   https://github.com/PipettingBeaver/HuStringSearch/releases/download/graph-2026.09.21/hustring-graph-2026.09.21.tar.gz
+   https://github.com/PipettingBeaver/HuStringSearch/releases/download/graph-2026.09.22/hustring-graph-2026.09.22.tar.gz
    ```
 
 ## Render (recommended, free)
 
-1. Create an account at https://render.com and connect your GitHub account.
-2. **New → Web Service**, pick the `HuStringSearch` repository.
-3. Render reads `render.yaml`; choose the **Free** instance type.
+Live demo: **https://hustringsearch.onrender.com**
+
+1. Make an account at https://render.com. Connect your GitHub account.
+2. Select **New → Web Service**. Select the `HuStringSearch` repository.
+3. Render reads `render.yaml`. Select the **Free** instance type.
 4. In **Environment**, set `HUSTRING_GRAPH_URL` to the asset URL above.
 5. Deploy. Render builds the Dockerfile and serves the app at
    `https://<service-name>.onrender.com`.
+6. Set the health check path to `/api/health`. The file `render.yaml` already has this value.
 
 Notes:
-- Free services **sleep after ~15 minutes** of inactivity; the next request wakes them
-  (a few seconds, plus the ~5 MB graph fetch).
-- Render's free tier gives the container an ephemeral disk, which is exactly why the graph is
-  fetched rather than built.
+- A free service sleeps after about 15 minutes without traffic. The next request wakes it. This
+  takes a few seconds, plus the graph fetch of about 5 MB.
+- The Render free tier gives the container an ephemeral disk. So the container gets the graph
+  and does not build it.
 
-## Google Cloud Run (later exercise)
+## Google Cloud Run (a later exercise)
 
-The same image runs here; the extra work is GCP-specific (billing account, Artifact Registry,
-IAM):
+The same image runs here. The extra work is specific to GCP: a billing account, Artifact
+Registry, and IAM.
 
 ```fish
 gcloud run deploy hustring --source . --allow-unauthenticated \
   --set-env-vars HUSTRING_GRAPH_URL=<asset url>
 ```
 
-Cloud Run injects `PORT`, so no extra configuration is needed. See `docs/DOCKER.md` for the
-image details and local testing.
+Cloud Run supplies `PORT`. So you need no extra configuration. See `docs/DOCKER.md` for the
+image details and for local tests.
 
-## Local / self-hosted
+## Local or self-hosted
 
-Use `docker compose up --build` (see `docs/DOCKER.md`). Because `./data` is a mounted volume,
-the graph persists across restarts and no URL variable is needed.
+Use `docker compose up --build`. See `docs/DOCKER.md`. The directory `./data` is a mounted
+volume. So the graph stays after a restart. You do not need the URL variable.
 
 ## Troubleshooting
 
-- **`permission denied ... docker.sock`** — add your user to the `docker` group and log back in
-  (`sudo usermod -aG docker $USER`).
-- **Container can't write to a mounted `./data`** (Fedora/RHEL, SELinux enforcing; often shows
-  as `Path '/data/cache' is not readable`). Add `:z` to the volume: `./data:/data:z`.
-- **The graph release workflow didn't run.** Tag-push workflows are read from the *tagged
-  commit*; move the tag onto current `main` (`git tag -f -a graph-<v> -m "..." && git push
-  --force origin graph-<v>`), or run **Release graph artifact** from the Actions tab.
-- **Deploy succeeds but the app shows no graph / health fails.** Confirm `HUSTRING_GRAPH_URL`
-  is set and reachable: `curl -sIL <url> | grep -i http` should show `200`.
+- **Message: `permission denied ... docker.sock`.** Add your user to the `docker` group. Then
+  log in again. Command: `sudo usermod -aG docker $USER`.
+- **The container cannot write to the mounted `./data`.** This occurs on Fedora and RHEL with
+  SELinux in enforcing mode. The error often shows as `Path '/data/cache' is not readable`. Add
+  `:z` to the volume: `./data:/data:z`.
+- **The graph release workflow did not run.** GitHub reads a tag-push workflow from the tagged
+  commit. Move the tag onto the current `main`:
+  `git tag -f -a graph-<v> -m "..." && git push --force origin graph-<v>`. Or run **Release
+  graph artifact** from the Actions tab.
+- **The deploy succeeds, but the app shows no graph, or the health check fails.** Make sure that
+  `HUSTRING_GRAPH_URL` is set and reachable. Run `curl -sIL <url> | grep -i http`. The result
+  must show `200`.

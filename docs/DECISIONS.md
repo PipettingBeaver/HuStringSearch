@@ -1,175 +1,265 @@
 # Decisions (ADR log)
 
-Living log of design decisions, the reasoning, and rejected alternatives.
-Append newest at the bottom. Format: Context / Decision / Why / Alternatives.
+This file records design decisions. It gives the reason for each decision and the
+options we rejected. Add new entries at the bottom. Use this format:
+
+- **Context:** the problem.
+- **Decision:** what we chose.
+- **Why:** the reason.
+- **Alternatives:** what we rejected.
+
+## Writing rules (Simplified Technical English, adapted)
+
+We write this file in an adapted form of ASD-STE100 Simplified Technical English. We
+keep the rules that help the reader. We do not follow the full controlled dictionary.
+
+Rules we use:
+
+- Write one idea in each sentence.
+- Keep sentences short. Use a maximum of about 25 words.
+- Use the active voice.
+- Use the same word for the same thing. Do not use synonyms.
+- Do not use idioms or slang.
+- Put the condition first, then the action.
+
+Project glossary (technical nouns and verbs):
+
+| Term | Meaning |
+|---|---|
+| graph | the merged interactome network |
+| node | one gene in the graph |
+| edge | one link between two nodes |
+| seed | the target gene or genes of the walk |
+| walk | the Random Walk with Restart (RWR) |
+| artifact | the prebuilt graph file |
+| build | the process that makes the graph |
+| taxon | an organism, identified by an NCBI taxonomy ID |
+| source | one interactome dataset, for example STRING |
+| mapping | the change of an identifier to the canonical ID |
 
 ## D1 — Two-tier data architecture
-**Context:** Full interactome downloads look huge; the all-species STRING file is ~129 GB.
-**Decision:** Ship (a) a compact prebuilt merged-graph artifact for runtime and (b) an
-opt-in `build-data` pipeline that re-fetches and rebuilds.
-**Why:** Human-filtered STRING is only ~60–90 MB gz; the merge artifact is ~10–30 MB. Runtime
-needs no outbound internet, giving fast cold starts and genuine offline local use.
-**Alternatives:** fetch-on-start (slow, breaks offline / when upstream changes); commit raw
-data (repo bloat).
+**Context:** The full interactome files are very large. The all-species STRING file is about
+129 GB.
+**Decision:** We ship two things. First, a compact prebuilt graph artifact for runtime. Second,
+an optional `build-data` command that downloads the data again and rebuilds the graph.
+**Why:** The human STRING file is only about 60–90 MB compressed. The merged artifact is about
+10–30 MB. At runtime, the app needs no internet. This gives fast cold starts and true offline
+use.
+**Alternatives:** Fetch at start (slow, fails when offline or when the source changes). Commit
+the raw data (large repository).
 
 ## D2 — Taxon-driven, species-general
-**Context:** Project began human-focused but must support other species and multi-species overlaps.
-**Decision:** All species behavior derives from an NCBI taxon ID. Human is only a default preset.
-**Why:** STRING file URLs, BioMart marts, and source support are all taxon-parameterized.
-**Alternatives:** hard-coded human pipeline (rejected).
+**Context:** The project started with human data. But it must also support other species and
+mixed-species graphs.
+**Decision:** All species behavior comes from an NCBI taxon ID. Human is only a default preset.
+**Why:** The STRING file names, the BioMart marts, and the source support all use the taxon ID.
+**Alternatives:** A hard-coded human pipeline (rejected).
 
 ## D3 — Canonical node key = Ensembl Gene ID
-**Context:** Sources use different namespaces (HuRI: symbols/Entrez/UniProt; STRING: Ensembl protein IDs).
-**Decision:** Canonicalize to Ensembl **Gene** ID (`ENSG…`, species-specific elsewhere).
-**Why:** One stable code resolvable to symbol/Entrez/UniProt, and IDs do not collide across taxa.
-**Alternatives:** source-native IDs + mapping table (messier joins); UniProt (isoform-unfriendly).
+**Context:** Each source uses different identifiers. HuRI uses symbols, Entrez, or UniProt.
+STRING uses Ensembl protein IDs.
+**Decision:** We map all identifiers to the Ensembl **Gene** ID (`ENSG…`, or the species
+equivalent).
+**Why:** One stable code maps to symbol, Entrez, and UniProt. IDs do not collide between taxa.
+**Alternatives:** Source-native IDs with a mapping table (the joins are harder). UniProt (it
+handles isoforms badly).
 
 ## D4 — Node granularity is an explicit preprocessing option
-**Context:** Isoform handling materially changes connectivity and RWR behavior.
-**Decision:** Expose `gene` (collapse ENSP→ENSG, default), `protein` (preserve isoforms),
-`as_provided`. Each with an explanation of effects in the build window.
-**Why:** Gene-level raises connectivity but can inflate degree and bias RWR toward hubs;
-protein-level preserves resolution but is sparser.
-**Alternatives:** silently collapsing (hides data loss from users).
+**Context:** The choice of isoform handling changes the connectivity and the walk results.
+**Decision:** We offer three options: `gene` (collapse ENSP to ENSG, the default), `protein`
+(keep isoforms), and `as_provided`. The build window explains the effect of each option.
+**Why:** Gene-level raises the connectivity. But it can increase the node degree and push the
+walk toward hubs. Protein-level keeps the detail. But the graph is sparser.
+**Alternatives:** Collapse without a message (it hides the data loss from the user).
 
 ## D5 — Interactome sources are a plugin registry
-**Context:** Human merges HuRI+STRING; other species may need STRING-only plus overlays.
-**Decision:** `InteractomeSource` interface with declared species support, parser, ID namespace,
-edge-weight policy. Plan: STRING, HuRI, custom TSV overlay, BioGRID, IntAct, and a STRING-COG
-orthology bridge for cross-species graphs.
-**Why:** Keeps the pipeline general and testable; cross-species is just another source.
-**Alternatives:** a fixed two-source merge (not extensible).
+**Context:** Human needs a merge of HuRI and STRING. Other species may need STRING only, plus
+extra overlays.
+**Decision:** We define an `InteractomeSource` interface. Each source declares the species it
+supports, its parser, its ID namespace, and its edge-weight policy. The planned sources are
+STRING, HuRI, a custom TSV overlay, BioGRID, IntAct, and a STRING-COG orthology bridge.
+**Why:** The pipeline stays general and testable. A cross-species source is just another source.
+**Alternatives:** A fixed merge of two sources (it cannot grow).
 
-## D6 — Seeds: single default, set supported
-**Context:** Target-centered use wants one seed, but set-based walks are useful.
-**Decision:** Restart vector supports one-hot or weighted multi-seed. Surface caveats in UI:
-heterogeneous sets blur toward shared neighborhoods; hub seeds dominate without normalization.
-**Alternatives:** single-seed only (limits use); unweighted auto-selection (opaque).
+## D6 — Seeds: one by default, a set is supported
+**Context:** A target-centered search needs one seed. But a walk from a set of genes is also
+useful.
+**Decision:** The restart vector accepts one seed or a weighted set. The UI shows the limits:
+a mixed set blurs toward the shared neighborhood. A hub seed dominates if we do not normalize.
+**Alternatives:** One seed only (it limits the use). Automatic unweighted seeds (the result is
+not clear).
 
-## D7 — Algorithms on scipy sparse; no NetworkX in hot path
-**Context:** RWR and preprocessing must scale to millions of edges.
-**Decision:** Represent graphs as scipy sparse matrices; NetworkX at most for layout/export.
-**Why:** Sparse matvec RWR stays sub-second at human scale; NetworkX would not.
-**Alternatives:** NetworkX everywhere (too slow); igraph (extra dep, C concerns).
+## D7 — Algorithms on scipy sparse; no NetworkX in the hot path
+**Context:** The walk and the preprocessing must handle millions of edges.
+**Decision:** We store the graph as a scipy sparse matrix. We use NetworkX only for layout and
+export, if at all.
+**Why:** A sparse matrix-vector multiply keeps the walk below one second at human scale.
+NetworkX would not.
+**Alternatives:** NetworkX for everything (too slow). igraph (an extra dependency with C build
+problems).
 
 ## D8 — Source formats verified against live data
-**Context:** Parsers must match real files, not guesses.
-**Decision & findings:**
-- HuRI (`interactome-atlas.org/data/HuRI.tsv`, 1.68 MB) is **headerless, tab-separated, two
-  Ensembl Gene IDs** — it already matches the canonical key, so HuRI needs *no* BioMart mapping.
-- STRING v12.0: links are space-separated `protein1 protein2 combined_score` (0–1000, human gz
-  83.2 MB); info is tab-separated `#string_protein_id preferred_name protein_size annotation`.
-  STRING nodes are Ensembl **protein** IDs, so mapping (`ENSP`→`ENSG`) is required.
-- BioGRID TAB3 has a **header row**, so parse by column name; organism columns are NCBI taxids;
-  download is an all-species zip (~170 MB) filtered at parse time.
-- IntAct PSI-MITAB: cols 0/1 ids, 9/10 taxids, 14 confidence; the global archive is **1.35 GB**,
-  and species files are per-strain (not taxid-addressable).
-- STRING `COG.mappings.v12.0.txt.gz` is **755 MB** and global; `orthologous_group` column bridges
-  species (protein IDs are `<taxid>.<protein>`).
-**Why:** Correct parsers, and honest expectations about download cost.
-**Alternatives:** naive index-based BioGRID parsing (fragile); assuming HuRI needs mapping (wrong).
+**Context:** The parsers must match the real files. We must not guess.
+**Decision and findings:**
+- HuRI (`interactome-atlas.org/data/HuRI.tsv`, 1.68 MB) has no header. It is tab-separated
+  and holds two Ensembl Gene IDs. It already matches the canonical key. So HuRI needs no
+  mapping.
+- STRING v12.0 links are space-separated: `protein1 protein2 combined_score` (0–1000; the
+  human file is 83.2 MB compressed). The info file is tab-separated:
+  `#string_protein_id preferred_name protein_size annotation`. STRING nodes are Ensembl
+  **protein** IDs. So we must map `ENSP` to `ENSG`.
+- BioGRID TAB3 has a header row. So we parse by column name. The organism columns hold NCBI
+  taxon IDs. The download is an all-species zip of about 170 MB. We filter it during the parse.
+- IntAct PSI-MITAB uses columns 0 and 1 for IDs, 9 and 10 for taxon IDs, and 14 for the
+  confidence. The global archive is 1.35 GB. The species files are per strain, not per taxon.
+- STRING `COG.mappings.v12.0.txt.gz` is 755 MB and global. The `orthologous_group` column
+  joins species. The protein IDs have the form `<taxid>.<protein>`.
+**Why:** We get correct parsers and honest expectations about the download size.
+**Alternatives:** BioGRID parsing by column index (fragile). Assume that HuRI needs mapping
+(wrong).
 
-## D9 — Large/global downloads are opt-in
-**Context:** Some sources are hundreds of MB or over a GB and are not species-scoped.
-**Decision:** BioGRID (all-species) downloads and filters by taxon; IntAct defaults to a local
-PSI-MITAB path or a species-specific URL and only falls back to the 1.35 GB global archive;
-the COG orthology bridge is opt-in. All downloads cache by filename with size checks and
-`.part` atomic renames.
-**Why:** Keeps the default human build small (~105 MB) and avoids surprising gigabyte fetches.
-**Alternatives:** always fetch global files (bad UX, wasteful).
+## D9 — Large and global downloads are optional
+**Context:** Some sources are hundreds of MB or more than 1 GB. They are not split by species.
+**Decision:** BioGRID downloads the all-species file and filters it by taxon. IntAct uses a
+local PSI-MITAB path or a species-specific URL by default. It uses the 1.35 GB global archive
+only as a fallback. The COG orthology bridge is optional. All downloads use a filename cache
+with a size check and an atomic `.part` rename.
+**Why:** The default human build stays small (about 105 MB). We avoid unexpected gigabyte
+downloads.
+**Alternatives:** Always download the global files (bad user experience, wasteful).
 
 ## D10 — STRING-derived mapping is the default; BioMart is optional
-**Context:** BioMart was the original mapping plan. During development the Ensembl endpoints were
-serving their "Service unavailable" page (the stable host 308-redirects to a release archive
-during release transitions). That was a timing observation, not a verdict: BioMart is a mature,
-widely used service; public endpoints simply have periodic downtime windows and rate limits.
-**Decision:** Canonicalize identifiers using STRING's own `protein.info` + `protein.aliases`
-files, which contain `Ensembl_gene` / `Ensembl_HGNC_ensembl_gene_id` entries that map STRING
-protein IDs straight to Ensembl Gene IDs. From those we also derive symbol/uniprot/entrez maps.
-BioMart remains a first-class optional provider, used in bounded, batched, cached build-time
-queries (e.g. gene names) — not in the request path.
-**Why:** The default human build needs zero BioMart calls, is reproducible, and still maps
-BioGRID symbols and IntAct UniProt accessions via the derived symbol/uniprot tables. Where we do
-use external services, we batch them at build time and degrade gracefully if they are down.
-**Alternatives:** BioMart-only mapping (adds a live dependency to every build); skip mapping
-(breaks the merge).
+**Context:** BioMart was the original mapping plan. During development, the Ensembl endpoints
+showed their "Service unavailable" page. The stable host redirects to a release archive during
+release transitions. This was a timing observation, not a final result. BioMart is a mature
+service and many projects use it. But the public endpoints have downtime windows and rate
+limits.
+**Decision:** We map identifiers with STRING's own `protein.info` and `protein.aliases` files.
+These files contain `Ensembl_gene` and `Ensembl_HGNC_ensembl_gene_id` entries. These entries map
+STRING protein IDs directly to Ensembl Gene IDs. From the same files, we also derive the symbol,
+UniProt, and Entrez maps. BioMart stays as an optional provider. We use it only for bounded,
+batched, cached queries at build time, for example for gene names. We never use it in the
+request path.
+**Why:** The default human build makes zero BioMart calls. It is reproducible. It still maps
+BioGRID symbols and IntAct UniProt accessions through the derived tables. When we must use an
+external service, we batch the calls at build time and we degrade with a warning if the service
+is down.
+**Alternatives:** BioMart-only mapping (it adds a live dependency to every build). No mapping
+(it breaks the merge).
 
-## D10a — Index-time vs query-time data
-**Context:** Deciding where a field like a gene's common name belongs.
-**Decision:** Data that affects *what* is in the graph or how it is searched (IDs, edges,
-weights, symbols) is baked into the artifact at build time. Data that only *describes* a result
-(long names, annotations, external IDs) is either baked once with a graceful fallback, or handled
-by **links out** to authoritative sources (Ensembl, NCBI Gene, GeneCards) rather than live
-per-request API calls.
-**Why:** Keeps the request path free of external dependencies and failures; links are strictly
-more robust than API calls for descriptive depth, and cannot rate-limit or go down.
-**Alternatives:** Live per-query BioMart/API lookups (fragile, slow, rate-limited); links only
-(no nice names without a click).
+## D10a — Index-time data compared with query-time data
+**Context:** We must decide where a field such as a gene common name belongs.
+**Decision:** Data that changes the graph content or the search goes into the artifact at build
+time. This includes IDs, edges, weights, and symbols. Data that only describes a result includes
+long names, annotations, and external IDs. We bake this data once with a fallback, or we link to
+an authoritative source (Ensembl, NCBI Gene, GeneCards). We do not make live API calls for each
+request.
+**Why:** The request path stays free of external dependencies and failures. A link is more
+robust than an API call for descriptive data. A link cannot hit a rate limit or go down.
+**Alternatives:** Live BioMart or API lookup for each query (fragile, slow, rate-limited).
+Links only (the user sees no friendly name before the click).
 
 ## D11 — Verified end-to-end human build
-**Context:** Validate the pipeline against real data, not just unit fixtures.
-**Decision/result:** `hustring build-data` for 9606 (HuRI + STRING>=700) produced **17,379 nodes /
-286,850 edges in ~56 s**, a **5.9 MB** graph artifact from a **104 MB** cache. RWR recovers known
-biology: TP53 -> EP300/MYC/HDAC1/MDM2/CDKN1A/ATM; BRCA1 -> RAD51/BRCA2/BARD1/RBBP8/MRE11/BLM/FANCD2.
-**Why:** Confirms the two-tier design, the mapping default, and RWR/merge correctness.
-**Note:** k-hop/threshold selections can be very large for hub targets; the CLI caps display to
-`--top` while reporting the true total.
+**Context:** We must test the pipeline with real data, not only with unit fixtures.
+**Decision and result:** The command `hustring build-data` for taxon 9606 (HuRI plus STRING with
+score ≥ 700) made **17,379 nodes and 286,850 edges in about 56 seconds**. It made a **5.9 MB**
+artifact from a **104 MB** cache. The walk recovers known biology. From TP53 it returns
+EP300, MYC, HDAC1, MDM2, CDKN1A, and ATM. From BRCA1 it returns RAD51, BRCA2, BARD1, RBBP8,
+MRE11, BLM, and FANCD2.
+**Why:** This confirms the two-tier design, the mapping default, and the correctness of the
+merge and the walk.
+**Note:** The k-hop and threshold selections can be very large for a hub target. The CLI limits
+the display to `--top` and reports the true total.
 
-## D12 — Web API + viewer design
-**Context:** Need an interactive viewer that is also easy to host and works offline locally.
+## D12 — Web API and viewer design
+**Context:** We need an interactive viewer. It must be easy to host and it must work offline.
 **Decision:**
-- FastAPI app built by `create_app(graph_dir, web_dir)`; the graph is **loaded lazily** on first
-  request and cached in-process, so the app boots without requiring the graph to exist.
-- Endpoints: `/api/health`, `/api/graph/summary`, `/api/sources`, `/api/search`,
-  `/api/config/descriptions`, `/api/subnetwork` (POST), and `/` + `/static` for the UI.
-- The UI is a single vanilla-JS page using **Cytoscape.js vendored at `web/vendor/`** (373 KB)
-  rather than a CDN, so local/offline use needs no internet.
-- `analysis.rank_target_centered` is the single shared code path for CLI and API.
-- The `/api/config/descriptions` endpoint exposes the `BuildConfig`/`RWRConfig` field descriptions,
-  feeding the "explanation window" requirement into the UI.
-**Why:** One Docker image can serve both API and UI; no build step for the frontend; offline-safe.
-**Note:** The UI caps rendering at 1500 nodes for very large k-hop results.
+- The FastAPI app is made by `create_app(graph_dir, web_dir)`. The graph is **loaded on the
+  first request** and kept in memory. So the app starts without the graph.
+- The endpoints are `/api/health`, `/api/graph/summary`, `/api/sources`, `/api/search`,
+  `/api/config/descriptions`, and `/api/subnetwork` (POST). The UI uses `/` and `/static`.
+- The UI is one page of plain JavaScript with **Cytoscape.js stored at `web/vendor/`**
+  (373 KB). It does not use a CDN. So local and offline use needs no internet.
+- `analysis.rank_target_centered` is the single shared code path for the CLI and the API.
+- The endpoint `/api/config/descriptions` returns the field descriptions of `BuildConfig` and
+  `RWRConfig`. This gives the data for the explanation window in the UI.
+**Why:** One Docker image serves the API and the UI. The frontend needs no build step. It works
+offline.
+**Note:** The UI limits the render to 1500 nodes for a large k-hop result.
 
 ## D13 — Verified live server
-**Context:** Confirm the hosted path works, not just unit tests.
-**Decision/result:** Served `data/derived/graph` and verified `/api/health`, `/`, `/static/app.js`,
-`/static/vendor/cytoscape.min.js`, `/api/search?q=TP53`, and `POST /api/subnetwork` (TP53 ->
-EP300/MYC/HDAC1/MDM2/JUN). 75 tests pass.
-**Alternatives:** frontend build toolchain (rejected: needless complexity for this scope).
+**Context:** We must confirm that the hosted path works, not only the unit tests.
+**Decision and result:** We served `data/derived/graph` and checked `/api/health`, `/`,
+`/static/app.js`, `/static/vendor/cytoscape.min.js`, `/api/search?q=TP53`, and
+`POST /api/subnetwork` (TP53 gives EP300, MYC, HDAC1, MDM2, and JUN). 75 tests pass.
+**Alternatives:** A frontend build toolchain (rejected: too much work for this scope).
 
-## D14 — Container-first delivery; graph is not baked
-**Context:** Same artifact must run locally and on HF Spaces / Cloud Run with minimal setup.
-**Decision:** One `Dockerfile` + `compose.yaml`. The image contains code only; the graph lives in
-a mounted `/data` volume. `docker/entrypoint.sh` auto-builds it on first run if absent, then serves
-on `$PORT` (default 8000), so Cloud Run/HF port injection works. Web assets are packaged into the
-wheel via hatch `force-include` (`web` -> `hustring/web`), with `HUSTRING_WEB_DIR` as an override,
-so the UI resolves in a non-editable install.
-**Why:** Small image, no stale data, identical local/hosted behavior, fast cold start when `/data`
-is prepopulated (e.g. a persisted volume or baked separately).
-**Alternatives:** bake the graph + 105 MB cache into the image (bloat/staleness); separate frontend
-container (overkill).
-**Note:** Docker is not installed on the dev machine, so the image build itself is unverified; the
-entrypoint and wheel contents were validated directly.
+## D14 — Container-first delivery; the graph is not in the image
+**Context:** The same artifact must run locally and on a hosted platform with little setup.
+**Decision:** We use one `Dockerfile` and one `compose.yaml`. The image contains only code. The
+graph lives in a mounted `/data` volume. On the first run, `docker/entrypoint.sh` builds the
+graph if it is absent. Then it serves on `$PORT` (default 8000). So the port from the host
+works. The web files go into the wheel through the hatch `force-include` option (`web` becomes
+`hustring/web`). The variable `HUSTRING_WEB_DIR` can override the path. So the UI resolves in a
+non-editable install.
+**Why:** The image is small and holds no stale data. Local and hosted behavior is the same. The
+cold start is fast when `/data` already holds the graph.
+**Alternatives:** Put the graph and the 105 MB cache in the image (large and stale). Use a
+second container for the frontend (too much).
+**Note:** Docker was not installed on the development machine. So we did not test the image
+build at first. We tested the entrypoint and the wheel contents directly.
 
-## D15 — Prebuilt graph ships as a Release asset, not in git
-**Context:** The two-tier design wants a prebuilt artifact, but committing derived data to `main`
-causes churn and staleness.
-**Decision:** Distribute the merged graph as a versioned GitHub Release asset (tar.gz + sha256)
-produced by `scripts/package_graph.sh`. `main` stays code-only; a deployment can unpack the asset
-into `HUSTRING_GRAPH` and skip the first-run build.
-**Why:** Clean history, artifact updates independent of code, and fast cold starts.
-**Alternatives:** commit directly (history bloat, stale); Git LFS (extra infra); DVC (heavier).
-**Revisit when:** CI can build/publish the artifact, or we adopt data versioning.
+## D15 — The prebuilt graph ships as a Release asset, not in git
+**Context:** The two-tier design needs a prebuilt artifact. But derived data in `main` causes
+churn and stale files.
+**Decision:** We publish the merged graph as a versioned GitHub Release asset (tar.gz with a
+sha256). The script `scripts/package_graph.sh` makes the asset. `main` holds only code. A
+deployment can unpack the asset into `HUSTRING_GRAPH` and skip the first-run build.
+**Why:** The history stays clean. The artifact updates independently of the code. The cold
+start is fast.
+**Alternatives:** Commit the artifact directly (large history, stale). Git LFS (extra
+infrastructure). DVC (heavier).
+**Revisit when:** CI can build and publish the artifact, or we add data versioning.
 
-## D16 — Single UI/backend; Gradio retired in favour of FastAPI on Render
-**Context:** Hugging Face began requiring a paid plan for Docker Spaces, so a Gradio app was
-added for the free tier. That created a second, less-controllable front-end (no custom tooltips,
-About dialog, or styling) that drifted from the hand-written `web/` viewer. The project's value
-is custom, explainable input, which is exactly where Gradio is weakest.
-**Decision:** Retire Gradio and the Hugging Face deploy files. Keep **FastAPI + `web/`** as the
-single UI and single backend, and host the same Docker image on **Render's free tier**
-(`render.yaml`). Cloud Run remains a documented option for later.
-**Why:** One UI means no drift and one thing to test; the Docker image is portable across hosts,
-so Render is not a lock-in.
-**Alternatives:** Gradio embedded in HF (fiddly, still two backends); HF Static with a JS port of
-RWR (free forever but duplicates the algorithm); Cloud Run now (needs billing + IAM setup).
+## D16 — One UI and one backend; Gradio replaced by FastAPI on Render
+**Context:** Hugging Face began to require a paid plan for Docker Spaces. So we added a Gradio
+app for the free tier. This made a second frontend with less control. It had no custom
+tooltips, no About dialog, and limited styling. It also drifted from the hand-written `web/`
+viewer. The value of this project is custom, explainable input. Gradio is weakest at exactly
+that.
+**Decision:** We removed Gradio and the Hugging Face deploy files. We keep **FastAPI and
+`web/`** as the single UI and the single backend. We host the same Docker image on **Render's
+free tier** (`render.yaml`). Cloud Run stays as a documented option for later.
+**Why:** One UI has no drift and only one thing to test. The Docker image runs on many hosts. So
+Render is not a lock-in.
+**Alternatives:** Gradio inside Hugging Face (hard to build, still two backends). Hugging Face
+Static with a JavaScript port of the walk (free, but duplicates the algorithm). Cloud Run now
+(it needs a billing account and IAM setup).
+
+## D17 — Deployment posture: what the Render demo is and is not
+**Context:** HuStringSearch is a small instance of a larger architecture. I wanted a live link
+that shows the full request path without paid infrastructure. I also wanted the same build to
+move to larger environments later without a rewrite.
+**Decision:** We host a deliberately small instance on Render's free tier
+(https://hustringsearch.onrender.com). The same Docker image runs locally, on a cloud host, or
+on HPC. For heavy, full-database searches, a user would run it locally, on their own cloud, or
+on a cluster. The container makes that move possible.
+**Why a server (Render) and not GitHub Pages or Colab:**
+- GitHub Pages serves static files only. It works for a project such as Quick2DViewer. That
+  viewer is self-contained and gets PDB data for each request. HuStringSearch needs the whole
+  graph in memory and a server-side matrix computation. So it cannot run there without a
+  rewrite of the algorithm in JavaScript.
+- Colab is shareable by URL. But it is a notebook. It has no always-on endpoint. It keeps no
+  data between sessions, so the graph would rebuild every time. Its cells-based interface does
+  not suit an interactive graph and multi-variable input. A custom UI suits this better.
+**Why Docker matters here:** It makes the location a deployment choice, not an engineering one.
+We use local for development, a managed host for a live demo, and HPC for large batch work.
+Clusters usually convert the image to Apptainer or Singularity and schedule it with Slurm,
+because Docker needs root. The artifact stays the same in all cases.
+**Scope note:** The demo ships a filtered human subset (17,379 nodes and 286,850 edges, STRING
+score ≥ 700) to fit free hardware. The pipeline can merge the full datasets. The filter is a
+deliberate limit of the demo, not a limit of the design.
+**Alternatives:** GitHub Pages with a JavaScript port of the walk (free, but it duplicates the
+algorithm and sends the graph to each browser). Colab (shareable, but no persistent endpoint, no
+data retention, and a notebook interface that does not suit an interactive graph). Paid Docker
+Spaces on Hugging Face (the same cost as a general host, with less flexibility).

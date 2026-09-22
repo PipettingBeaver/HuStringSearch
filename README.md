@@ -7,9 +7,21 @@ Merge multiple protein interactome sources (**HuRI**, **STRING**, **BioGRID**,
 **target-centered Random Walk with Restart (RWR)** to isolate and visualize
 functional subnetworks in an interactive web viewer.
 
-Online demo: see `docs/DEPLOY.md` (hosted on Render). The same Docker image runs locally,
+Online demo: **https://hustringsearch.onrender.com**. The same Docker image runs locally,
 on Render, or on a container host. Species is a parameter (NCBI taxon ID) — human is a
 default, not an assumption.
+
+<!-- TODO (PipettingBeaver): write this section in your own words.
+     Talk about why the project exists, what it does, and what you learned.
+     Add a screenshot of the hosted UI below the intro, for example:
+     ![HuStringSearch viewer](docs/images/viewer.png)
+     The hosted UI is the same as running locally with Docker.
+-->
+## Overview
+
+> **Placeholder — to be written.** A short description of the project in the author's
+> own words: the goal, the motivation, and the intended use. A screenshot of the hosted
+> viewer goes here.
 
 ## Status
 Early scaffolding and remake. Was a class project remade from ground up to be
@@ -35,7 +47,7 @@ hustring serve -g data/derived/graph     # interactive viewer at http://127.0.0.
 ## Usage
 ```zsh
 hustring build-data                     # fetch + merge interactomes into a graph artifact
-hustring build-data --enrich-gene-names  # also fetch long gene names from BioMart (cached)
+hustring build-data --enrich-gene-names  # also fetch gene names (Ensembl REST, cached)
 hustring inspect -g data/derived/graph  # graph size and top hubs
 hustring walk TP53 -g data/derived/graph --top 25
 hustring serve -g data/derived/graph    # interactive viewer at http://127.0.0.1:8000
@@ -66,7 +78,7 @@ Release asset so a deployment can start without rebuilding:
 
 ```bash
 scripts/package_graph.sh data/derived/graph 2026.09.21
-gh release create graph-2026.09.21 dist/hustring-graph-2026.09.21.tar.gz \
+gh release create graph-2026.09.22 dist/hustring-graph-2026.09.22.tar.gz \
   --title "Prebuilt human graph (HuRI + STRING)" \
   --notes "ENSG-canonical, STRING combined score >= 700. Unpack into data/derived/graph."
 ```
