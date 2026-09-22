@@ -12,5 +12,5 @@ services:
       HUSTRING_AUTO_BUILD: "1"
       PORT: "8000"
     volumes:
-      - ./data:/data
+      - ./data:/data:z
     restart: unless-stopped

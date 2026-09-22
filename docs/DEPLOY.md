@@ -83,6 +83,19 @@ Cloud Run injects `PORT`, so no extra configuration is needed.
 
 ## Troubleshooting
 
+- **`permission denied ... docker.sock`** — your user isn't in the `docker` group:
+  `sudo usermod -aG docker $USER`, then log out and back in.
+- **Container can't write to a mounted `./data`** (common on Fedora with SELinux
+  enforcing, where the error appears as `Path '/data/cache' is not readable`).
+  Relabel the bind mount with the `:z` flag:
+
+  ```yaml
+  volumes:
+    - ./data:/data:z
+  ```
+
+  `:z` allows shared access to the labeled directory; `:Z` makes it private to this
+  container. Check with `getenforce` and `ls -Z ./data`.
 - **The graph release workflow didn't run.** Tag-push workflows are read from the *tagged
   commit*, so a tag pointing at a commit older than `.github/workflows/release-graph.yml` will
   not trigger it. Move the tag onto current `main`:

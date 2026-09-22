@@ -13,6 +13,7 @@ else
 fi
 
 if [ ! -f "${GRAPH_DIR}/adjacency.npz" ]; then
+  mkdir -p "${GRAPH_DIR}" "${CACHE_DIR}"
   if [ -n "${HUSTRING_GRAPH_URL:-}" ]; then
     echo "Fetching prebuilt graph from ${HUSTRING_GRAPH_URL}"
     hustring fetch-graph --url "${HUSTRING_GRAPH_URL}" --output "${GRAPH_DIR}"
