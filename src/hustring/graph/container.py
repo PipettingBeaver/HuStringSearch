@@ -67,6 +67,7 @@ class Graph:
     edges: pd.DataFrame
     manifest: dict[str, Any] = field(default_factory=dict)
     node_sources: list[str] = field(default_factory=list)
+    gene_names: list[str] = field(default_factory=list)
     _index: dict[str, int] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
@@ -82,6 +83,10 @@ class Graph:
             self.node_sources = derive_node_sources(self.edges, self.node_ids)
         elif len(self.node_sources) != n:
             raise GraphError("node_sources length must match node_ids")
+        if not self.gene_names:
+            self.gene_names = [""] * n
+        elif len(self.gene_names) != n:
+            raise GraphError("gene_names length must match node_ids")
 
     @property
     def n_nodes(self) -> int:
@@ -109,6 +114,11 @@ class Graph:
             return "unknown"
         return classify_sources(self.node_sources[index])
 
+    def gene_name_of(self, node_id: str) -> str:
+        """Long-form gene name for a node, or "" when unavailable."""
+        index = self._index.get(node_id)
+        return self.gene_names[index] if index is not None else ""
+
     def summary(self) -> dict[str, Any]:
         return {
             "nodes": self.n_nodes,
@@ -126,6 +136,7 @@ class Graph:
                 "symbol": self.symbols,
                 "description": self.descriptions,
                 "sources": self.node_sources,
+                "gene_name": self.gene_names,
             }
         ).to_parquet(target / NODES_FILE, index=False)
         self.edges.to_parquet(target / EDGES_FILE, index=False)
@@ -149,6 +160,9 @@ class Graph:
         node_sources = (
             [str(value) for value in nodes["sources"]] if "sources" in nodes.columns else []
         )
+        gene_names = (
+            [str(value) for value in nodes["gene_name"]] if "gene_name" in nodes.columns else []
+        )
         return cls(
             node_ids=list(nodes["id"]),
             symbols=list(nodes["symbol"]),
@@ -157,4 +171,5 @@ class Graph:
             edges=edges,
             manifest=manifest,
             node_sources=node_sources,
+            gene_names=gene_names,
         )

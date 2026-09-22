@@ -37,12 +37,14 @@ class RankedNodeModel(BaseModel):
     symbol: str
     score: float
     source_class: str = "unknown"
+    gene_name: str = ""
 
 
 class SeedNodeModel(BaseModel):
     id: str
     label: str
     source_class: str = "unknown"
+    gene_name: str = ""
 
 
 class EdgeModel(BaseModel):

@@ -20,7 +20,7 @@ from ..sources import create_source
 from ..sources.base import InteractomeSource, SourceData
 from .container import Graph
 
-Annotation = tuple[str | None, str | None]
+Annotation = tuple[str | None, str | None, str | None]
 
 
 def build_graph(
@@ -30,6 +30,7 @@ def build_graph(
     force: bool = False,
     resolver: IdentifierResolver | None = None,
     instances: Sequence[InteractomeSource] | None = None,
+    enrich_gene_names: bool = False,
 ) -> Graph:
     """Fetch enabled sources, harmonize IDs, and build the merged graph."""
     cache = Path(cache_dir)
@@ -92,22 +93,37 @@ def build_graph(
     if not node_ids:
         raise GraphError("no nodes remained after filtering")
 
+    if enrich_gene_names and config.node_granularity != NodeGranularity.AS_PROVIDED:
+        _enrich_gene_names(config.taxid, cache, annotations)
+
     edges["weight"] = _normalize_weights(edges["weight"], config.weight_normalization)
     adjacency = _adjacency(edges, index, len(node_ids))
 
-    symbols = [annotations.get(node_id, (None, None))[0] or node_id for node_id in node_ids]
+    symbols = [annotations.get(node_id, (None, None, None))[0] or node_id for node_id in node_ids]
+    gene_names = [
+        annotations.get(node_id, (None, None, None))[1] or "" for node_id in node_ids
+    ]
     descriptions = [
-        annotations.get(node_id, (None, None))[1] or "" for node_id in node_ids
+        annotations.get(node_id, (None, None, None))[2] or "" for node_id in node_ids
     ]
     manifest = {
         "created": datetime.now(timezone.utc).isoformat(),
         "config": config.model_dump(mode="json"),
         "sources": source_info,
         "unmapped_edges": unmapped_total,
+        "gene_names": {"enabled": enrich_gene_names, "count": int(bool(gene_names) and sum(bool(n) for n in gene_names))},
         "nodes": len(node_ids),
         "edges": len(edges),
     }
-    return Graph(node_ids, symbols, descriptions, adjacency, edges, manifest)
+    return Graph(
+        node_ids,
+        symbols,
+        descriptions,
+        adjacency,
+        edges,
+        manifest,
+        gene_names=gene_names,
+    )
 
 
 def _resolve_sources(
@@ -135,6 +151,28 @@ def _resolve_sources(
     return pairs
 
 
+def _enrich_gene_names(
+    taxid: int,
+    cache: Path,
+    annotations: dict[str, Annotation],
+) -> None:
+    """Best-effort gene-name enrichment; never fails the build."""
+    from ..mapping.enrich import fetch_gene_names
+
+    try:
+        names = fetch_gene_names(taxid, cache)
+    except Exception as exc:
+        import warnings
+
+        warnings.warn(f"gene-name enrichment skipped: {exc}", stacklevel=2)
+        return
+    for gene_id, name in names.items():
+        current = annotations.get(gene_id)
+        if current is None or not current[1]:
+            existing = current or (None, None, None)
+            annotations[gene_id] = (existing[0], name, existing[2])
+
+
 def _collect_annotations(
     data: SourceData,
     namespace: str,
@@ -155,18 +193,23 @@ def _collect_annotations(
         {
             "id": canonical,
             "symbol": nodes["symbol"],
+            "gene_name": nodes["gene_name"],
             "description": nodes["description"],
         }
     ).dropna(subset=["id"])
-    for cid, symbol, description in zip(
-        frame["id"], frame["symbol"], frame["description"], strict=True
+    for cid, symbol, gene_name, description in zip(
+        frame["id"],
+        frame["symbol"],
+        frame["gene_name"],
+        frame["description"],
+        strict=True,
     ):
-        current_symbol, current_description = annotations.get(cid, (None, None))
-        new_symbol = current_symbol or (None if pd.isna(symbol) else str(symbol))
-        new_description = current_description or (
-            None if pd.isna(description) else str(description)
+        current = annotations.get(cid, (None, None, None))
+        annotations[cid] = (
+            current[0] or (None if pd.isna(symbol) else str(symbol)),
+            current[1] or (None if pd.isna(gene_name) else str(gene_name)),
+            current[2] or (None if pd.isna(description) else str(description)),
         )
-        annotations[cid] = (new_symbol, new_description)
 
 
 def _order_pairs(edges: pd.DataFrame) -> pd.DataFrame:

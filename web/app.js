@@ -361,6 +361,11 @@ function showDetails(data) {
   id.className = "muted";
   id.textContent = data.id;
   panel.append(title, id);
+  if (data.gene_name) {
+    const name = document.createElement("div");
+    name.textContent = data.gene_name;
+    panel.appendChild(name);
+  }
   if (score !== undefined) {
     const value = document.createElement("div");
     value.textContent = `RWR score: ${score.toExponential(4)}`;
@@ -375,6 +380,25 @@ function showDetails(data) {
     const source = document.createElement("div");
     source.textContent = `source: ${data.source_class}`;
     panel.appendChild(source);
+  }
+  if (data.links) {
+    const links = document.createElement("div");
+    links.className = "links";
+    const labels = {
+      ensembl: "Ensembl",
+      ncbi: "NCBI Gene",
+      genecards: "GeneCards",
+      uniprot: "UniProt",
+    };
+    for (const [key, url] of Object.entries(data.links)) {
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.textContent = labels[key] || key;
+      links.appendChild(anchor);
+    }
+    panel.appendChild(links);
   }
   panel.classList.remove("hidden");
 }

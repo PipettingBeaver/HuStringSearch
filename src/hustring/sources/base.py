@@ -19,7 +19,7 @@ import pandas as pd
 from ..errors import SourceError
 
 EDGE_COLUMNS: tuple[str, ...] = ("a", "b", "weight")
-NODE_COLUMNS: tuple[str, ...] = ("id", "symbol", "description")
+NODE_COLUMNS: tuple[str, ...] = ("id", "symbol", "gene_name", "description")
 
 
 @dataclass(frozen=True, slots=True)

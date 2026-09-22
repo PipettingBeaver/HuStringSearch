@@ -198,6 +198,6 @@ def test_node_dataframe_is_immutable_shape(tmp_path: Path) -> None:
     from hustring.sources import SourceData
 
     data = SourceData(source="huri", edges=parse_huri(path))
-    assert list(data.nodes.columns) == ["id", "symbol", "description"]
+    assert list(data.nodes.columns) == ["id", "symbol", "gene_name", "description"]
     assert data.n_nodes == 2
     assert isinstance(data.edges, pd.DataFrame)

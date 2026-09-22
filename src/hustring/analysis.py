@@ -25,12 +25,24 @@ SOURCE_COLORS: dict[str, str] = {
 }
 
 
+def external_links(gene_id: str, symbol: str) -> dict[str, str]:
+    """Authoritative lookup URLs for a gene (links out rather than live queries)."""
+    query = symbol or gene_id
+    return {
+        "ensembl": f"https://www.ensembl.org/Gene/Summary?g={gene_id}",
+        "ncbi": f"https://www.ncbi.nlm.nih.gov/gene/?term={query}",
+        "genecards": f"https://www.genecards.org/cgi-bin/carddisp.pl?gene={query}",
+        "uniprot": f"https://www.uniprot.org/uniprotkb?query={query}",
+    }
+
+
 @dataclass(slots=True)
 class RankedNode:
     id: str
     symbol: str
     score: float
     source_class: str = "unknown"
+    gene_name: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -38,6 +50,7 @@ class RankedNode:
             "symbol": self.symbol,
             "score": self.score,
             "source_class": self.source_class,
+            "gene_name": self.gene_name,
         }
 
 
@@ -50,6 +63,7 @@ class SubnetworkResult:
     mode: SelectionMode
     ranked: list[RankedNode]
     seed_source_classes: list[str] = field(default_factory=list)
+    seed_gene_names: list[str] = field(default_factory=list)
     edges: list[dict[str, Any]] = field(default_factory=list)
     parameters: dict[str, Any] = field(default_factory=dict)
 
@@ -83,12 +97,15 @@ class SubnetworkResult:
                 if index < len(self.seed_source_classes)
                 else "unknown"
             )
+            gene_name = self.seed_gene_names[index] if index < len(self.seed_gene_names) else ""
             nodes[seed_id] = {
                 "id": seed_id,
                 "label": label,
                 "seed": True,
                 "source_class": source_class,
                 "color": SOURCE_COLORS.get(source_class, SOURCE_COLORS["unknown"]),
+                "gene_name": gene_name,
+                "links": external_links(seed_id, label),
             }
         for node in self.ranked[:max_nodes]:
             nodes.setdefault(
@@ -99,6 +116,8 @@ class SubnetworkResult:
                     "seed": node.id in seed_set,
                     "source_class": node.source_class,
                     "color": SOURCE_COLORS.get(node.source_class, SOURCE_COLORS["unknown"]),
+                    "gene_name": node.gene_name,
+                    "links": external_links(node.id, node.symbol),
                 },
             )
 
@@ -209,6 +228,7 @@ def rank_target_centered(
             symbol=graph.symbols[int(i)],
             score=float(scores[int(i)]),
             source_class=graph.source_class_of(graph.node_ids[int(i)]),
+            gene_name=graph.gene_name_of(graph.node_ids[int(i)]),
         )
         for i in selected
     ]
@@ -241,6 +261,7 @@ def rank_target_centered(
         missing_seeds=missing,
         seed_ids=[graph.node_ids[int(i)] for i in indices],
         seed_source_classes=[graph.source_class_of(graph.node_ids[int(i)]) for i in indices],
+        seed_gene_names=[graph.gene_name_of(graph.node_ids[int(i)]) for i in indices],
         mode=mode,
         ranked=ranked,
         edges=edges,

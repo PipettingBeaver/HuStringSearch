@@ -79,15 +79,32 @@ the COG orthology bridge is opt-in. All downloads cache by filename with size ch
 **Alternatives:** always fetch global files (bad UX, wasteful).
 
 ## D10 — STRING-derived mapping is the default; BioMart is optional
-**Context:** BioMart was the original mapping plan, but its endpoints proved unreliable (the
-stable host redirects to a release archive that was serving "Service unavailable").
+**Context:** BioMart was the original mapping plan. During development the Ensembl endpoints were
+serving their "Service unavailable" page (the stable host 308-redirects to a release archive
+during release transitions). That was a timing observation, not a verdict: BioMart is a mature,
+widely used service; public endpoints simply have periodic downtime windows and rate limits.
 **Decision:** Canonicalize identifiers using STRING's own `protein.info` + `protein.aliases`
 files, which contain `Ensembl_gene` / `Ensembl_HGNC_ensembl_gene_id` entries that map STRING
 protein IDs straight to Ensembl Gene IDs. From those we also derive symbol/uniprot/entrez maps.
-BioMart remains a first-class optional provider for gaps and non-STRING-covered IDs.
+BioMart remains a first-class optional provider, used in bounded, batched, cached build-time
+queries (e.g. gene names) — not in the request path.
 **Why:** The default human build needs zero BioMart calls, is reproducible, and still maps
-BioGRID symbols and IntAct UniProt accessions via the derived symbol/uniprot tables.
-**Alternatives:** BioMart-only (fragile, currently down); skip mapping (breaks the merge).
+BioGRID symbols and IntAct UniProt accessions via the derived symbol/uniprot tables. Where we do
+use external services, we batch them at build time and degrade gracefully if they are down.
+**Alternatives:** BioMart-only mapping (adds a live dependency to every build); skip mapping
+(breaks the merge).
+
+## D10a — Index-time vs query-time data
+**Context:** Deciding where a field like a gene's common name belongs.
+**Decision:** Data that affects *what* is in the graph or how it is searched (IDs, edges,
+weights, symbols) is baked into the artifact at build time. Data that only *describes* a result
+(long names, annotations, external IDs) is either baked once with a graceful fallback, or handled
+by **links out** to authoritative sources (Ensembl, NCBI Gene, GeneCards) rather than live
+per-request API calls.
+**Why:** Keeps the request path free of external dependencies and failures; links are strictly
+more robust than API calls for descriptive depth, and cannot rate-limit or go down.
+**Alternatives:** Live per-query BioMart/API lookups (fragile, slow, rate-limited); links only
+(no nice names without a click).
 
 ## D11 — Verified end-to-end human build
 **Context:** Validate the pipeline against real data, not just unit fixtures.

@@ -35,6 +35,7 @@ hustring serve -g data/derived/graph     # interactive viewer at http://127.0.0.
 ## Usage
 ```zsh
 hustring build-data                     # fetch + merge interactomes into a graph artifact
+hustring build-data --enrich-gene-names  # also fetch long gene names from BioMart (cached)
 hustring inspect -g data/derived/graph  # graph size and top hubs
 hustring walk TP53 -g data/derived/graph --top 25
 hustring serve -g data/derived/graph    # interactive viewer at http://127.0.0.1:8000

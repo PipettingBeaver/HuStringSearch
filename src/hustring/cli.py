@@ -40,6 +40,11 @@ def build_data(
     string_threshold: int = typer.Option(700, min=0, max=1000, help="STRING score cutoff."),
     min_degree: int = typer.Option(0, min=0, help="Drop nodes below this degree."),
     keep_largest_component: bool = typer.Option(False, help="Keep only the largest component."),
+    enrich_gene_names: bool = typer.Option(
+        False,
+        "--enrich-gene-names",
+        help="Fetch long gene names from Ensembl BioMart at build time (cached, best-effort).",
+    ),
     force: bool = typer.Option(False, help="Re-download even if a cached file exists."),
 ) -> None:
     """Fetch enabled sources, merge, and save a canonical graph."""
@@ -53,7 +58,7 @@ def build_data(
         keep_largest_component=keep_largest_component,
     )
     typer.echo(f"Building graph for {config.species_name()} ...")
-    graph = build_graph(config, cache, force=force)
+    graph = build_graph(config, cache, force=force, enrich_gene_names=enrich_gene_names)
     graph.save(output)
     typer.echo(f"Saved {graph.n_nodes} nodes / {graph.n_edges} edges to {output}")
     unmapped = graph.manifest.get("unmapped_edges")

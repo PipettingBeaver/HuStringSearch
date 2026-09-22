@@ -132,6 +132,15 @@ tbody td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 
 .hidden { display: none; }
 
+.links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem; }
+.links a {
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.links a:hover { border-bottom-style: solid; }
+
 /* Header */
 #about {
   margin-left: auto;
