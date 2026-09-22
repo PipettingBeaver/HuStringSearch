@@ -11,9 +11,8 @@ dist/
 build/
 
 # Runtime data/caches (regenerated via `hustring build-data`)
-data/raw/
-data/cache/
-data/derived/
+# The container writes to data/graph, so the whole data dir is ignored.
+data/
 *.parquet
 *.npz
 build_manifest.json
