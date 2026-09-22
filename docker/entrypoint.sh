@@ -6,8 +6,6 @@ CACHE_DIR="${HUSTRING_CACHE:-/data/cache}"
 
 if [ -n "${PORT:-}" ]; then
   BIND_PORT="${PORT}"
-elif [ -n "${SPACE_ID:-}" ]; then
-  BIND_PORT="7860"
 else
   BIND_PORT="8000"
 fi

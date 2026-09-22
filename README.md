@@ -7,9 +7,9 @@ Merge multiple protein interactome sources (**HuRI**, **STRING**, **BioGRID**,
 **target-centered Random Walk with Restart (RWR)** to isolate and visualize
 functional subnetworks in an interactive web viewer.
 
-Online version is currently accessible [here](https://huggingface.co/spaces/PipettingBeaver/HuStringSearch) on HuggingFace.
-It also runs locally, in Docker, or on a container host. Species is a parameter
-(NCBI taxon ID) — human is a default, not an assumption.
+Online demo: see `docs/DEPLOY.md` (hosted on Render). The same Docker image runs locally,
+on Render, or on a container host. Species is a parameter (NCBI taxon ID) — human is a
+default, not an assumption.
 
 ## Status
 Early scaffolding and remake. Was a class project remade from ground up to be
@@ -38,7 +38,6 @@ hustring build-data                     # fetch + merge interactomes into a grap
 hustring inspect -g data/derived/graph  # graph size and top hubs
 hustring walk TP53 -g data/derived/graph --top 25
 hustring serve -g data/derived/graph    # interactive viewer at http://127.0.0.1:8000
-hustring gradio -g data/derived/graph   # Gradio viewer (used by the hosted demo)
 ```
 
 If you'd rather not activate the venv, call the entrypoint directly:

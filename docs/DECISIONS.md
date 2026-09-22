@@ -143,3 +143,16 @@ into `HUSTRING_GRAPH` and skip the first-run build.
 **Why:** Clean history, artifact updates independent of code, and fast cold starts.
 **Alternatives:** commit directly (history bloat, stale); Git LFS (extra infra); DVC (heavier).
 **Revisit when:** CI can build/publish the artifact, or we adopt data versioning.
+
+## D16 — Single UI/backend; Gradio retired in favour of FastAPI on Render
+**Context:** Hugging Face began requiring a paid plan for Docker Spaces, so a Gradio app was
+added for the free tier. That created a second, less-controllable front-end (no custom tooltips,
+About dialog, or styling) that drifted from the hand-written `web/` viewer. The project's value
+is custom, explainable input, which is exactly where Gradio is weakest.
+**Decision:** Retire Gradio and the Hugging Face deploy files. Keep **FastAPI + `web/`** as the
+single UI and single backend, and host the same Docker image on **Render's free tier**
+(`render.yaml`). Cloud Run remains a documented option for later.
+**Why:** One UI means no drift and one thing to test; the Docker image is portable across hosts,
+so Render is not a lock-in.
+**Alternatives:** Gradio embedded in HF (fiddly, still two backends); HF Static with a JS port of
+RWR (free forever but duplicates the algorithm); Cloud Run now (needs billing + IAM setup).

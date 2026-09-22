@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: hustring
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: HUSTRING_GRAPH
+        value: /data/graph
+      - key: HUSTRING_CACHE
+        value: /data/cache
+      # Set this in the Render dashboard to your graph Release asset URL, so the
+      # service downloads the ~5 MB prebuilt graph instead of rebuilding it.
+      - key: HUSTRING_GRAPH_URL
+        sync: false
+      - key: HUSTRING_AUTO_BUILD
+        value: "1"

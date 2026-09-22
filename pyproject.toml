@@ -31,9 +31,6 @@ web = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.32",
 ]
-gradio = [
-  "gradio>=5.0",
-]
 dev = [
   "pytest>=8.3",
   "pytest-cov>=6.0",
@@ -42,7 +39,7 @@ dev = [
   "types-requests>=2.32",
   "httpx2>=0.1",
 ]
-all = ["hustring[web,gradio,dev]"]
+all = ["hustring[web,dev]"]
 
 [project.scripts]
 hustring = "hustring.cli:app"
@@ -74,7 +71,7 @@ mypy_path = "src"
 packages = ["hustring"]
 
 [[tool.mypy.overrides]]
-module = ["scipy.*", "pandas.*", "pyarrow.*", "typer.*", "fastapi.*", "uvicorn.*", "gradio.*", "spaces.*"]
+module = ["scipy.*", "pandas.*", "pyarrow.*", "typer.*", "fastapi.*", "uvicorn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

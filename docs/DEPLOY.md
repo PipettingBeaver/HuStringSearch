@@ -1,112 +1,87 @@
 # Deploying HuStringSearch
 
-The project ships as a single Docker image, so any container host works. This
-document covers Hugging Face Spaces (recommended for a free public demo) and notes
-Cloud Run.
+HuStringSearch ships as a single Docker image, so any container host works. The image is the
+unit of deployment: build it once, run it locally, on Render, Cloud Run, or a self-hosted
+machine, and behavior is identical.
 
-## Ports
+> **Note on Hugging Face:** earlier revisions included a Gradio front-end for Hugging Face's
+> free tier. That was retired to keep a single UI and backend (see `docs/DECISIONS.md`).
+> Hugging Face now charges for Docker Spaces, so Render is the recommended free host.
 
-The entrypoint binds to:
+## What the container needs
 
-- `$PORT` if set (Cloud Run injects it),
-- **7860** when `SPACE_ID` is present (Hugging Face Spaces),
-- otherwise **8000** (local / Docker Compose).
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `8000` | Port to bind (injected by most hosts) |
+| `HUSTRING_GRAPH` | `/data/graph` | Where the built graph lives |
+| `HUSTRING_CACHE` | `/data/cache` | Where raw downloads are cached |
+| `HUSTRING_GRAPH_URL` | unset | Fetch a prebuilt graph archive instead of building |
+| `HUSTRING_AUTO_BUILD` | `1` | Build the graph on first run if missing |
 
-## Graph on ephemeral hosts
+Startup logic (`docker/entrypoint.sh`): if there is no graph, fetch `HUSTRING_GRAPH_URL` or
+build one; then serve on `$PORT`.
 
-Spaces and Cloud Run have ephemeral storage, so the container would otherwise
-rebuild the merged graph (~105 MB download, ~1 min) on every cold start. Instead,
-fetch the small prebuilt artifact from a GitHub Release:
+## Prebuilt graph
 
-1. Publish a graph release (see the README; the `graph-*` tag workflow does this
-   automatically).
-2. Point the container at it:
+Hosts with ephemeral storage (Render free, Cloud Run) restart with an empty filesystem, so
+building the graph on every cold start is wasteful. Publish it once as a GitHub Release asset
+and point `HUSTRING_GRAPH_URL` at it:
 
-   ```
-   HUSTRING_GRAPH_URL=https://github.com/PipettingBeaver/HuStringSearch/releases/download/graph-2026.09.21/hustring-graph-2026.09.21.tar.gz
-   ```
+1. Publish (automatically on a `graph-*` tag, or manually):
 
-On startup the entrypoint runs `hustring fetch-graph`, which downloads and unpacks
-the ~5 MB archive. If `HUSTRING_GRAPH_URL` is unset, it falls back to
-`hustring build-data` (controlled by `HUSTRING_AUTO_BUILD`).
-
-## Hugging Face Spaces (Gradio — free)
-
-> As of 2026, Hugging Face requires a **paid plan** to create Docker or CPU Gradio Spaces.
-> Static Spaces are free, and free personal accounts can host up to **two Gradio Spaces on
-> ZeroGPU**. This project therefore ships a Gradio app.
-
-Prerequisites: a Hugging Face account and an access token with **write** scope
-(https://huggingface.co/settings/tokens).
-
-1. Create a Space: https://huggingface.co/new-space, **SDK = Gradio**, any name
-   (for example `HuStringSearch`).
-2. Deploy the app (three small files):
-
-   ```fish
-   set -x HF_TOKEN hf_xxxxxxxxxxxxxxxxx
-   scripts/deploy_hf_gradio.sh <hf-user> <space-name>
+   ```bash
+   scripts/package_graph.sh data/derived/graph 2026.09.21
+   gh release create graph-2026.09.21 dist/hustring-graph-2026.09.21.tar.gz \
+     --title "Prebuilt human graph (HuRI + STRING)"
    ```
 
-   `requirements.txt` installs the package straight from GitHub, so the Space runs the
-   pushed `main`.
-3. In the Space **Settings → Variables and secrets**, add:
+2. Use the asset URL:
 
    ```
-   HUSTRING_GRAPH_URL = <your graph release asset URL>
+   https://github.com/PipettingBeaver/HuStringSearch/releases/download/graph-2026.09.21/hustring-graph-2026.09.21.tar.gz
    ```
 
-   Without it, the Space builds the graph on first use (slower).
-4. Open `https://huggingface.co/spaces/<hf-user>/<space-name>`.
+## Render (recommended, free)
+
+1. Create an account at https://render.com and connect your GitHub account.
+2. **New → Web Service**, pick the `HuStringSearch` repository.
+3. Render reads `render.yaml`; choose the **Free** instance type.
+4. In **Environment**, set `HUSTRING_GRAPH_URL` to the asset URL above.
+5. Deploy. Render builds the Dockerfile and serves the app at
+   `https://<service-name>.onrender.com`.
 
 Notes:
-- Ranking runs server-side on CPU via the shared analysis module; the graph is drawn in the
-  browser with Cytoscape.js (loaded from a CDN).
-- A no-op ZeroGPU function is defined so the Space is valid on the free tier; it never
-  requests a GPU, so no quota is consumed.
-- Free Spaces **sleep after inactivity**; the first request restarts the container and
-  re-fetches the ~5 MB graph.
+- Free services **sleep after ~15 minutes** of inactivity; the next request wakes them
+  (a few seconds, plus the ~5 MB graph fetch).
+- Render's free tier gives the container an ephemeral disk, which is exactly why the graph is
+  fetched rather than built.
 
-### Docker Space (requires a paid plan)
+## Google Cloud Run (later exercise)
 
-The Docker image also works as a Docker Space (`sdk: docker`, `app_port: 7860`), but that
-needs PRO/Team. Docker remains the recommended path for local use and other container hosts.
-
-## Google Cloud Run (brief)
+The same image runs here; the extra work is GCP-specific (billing account, Artifact Registry,
+IAM):
 
 ```fish
 gcloud run deploy hustring --source . --allow-unauthenticated \
-  --set-env-vars HUSTRING_GRAPH_URL=<your graph release asset URL>
+  --set-env-vars HUSTRING_GRAPH_URL=<asset url>
 ```
 
-Cloud Run injects `PORT`, so no extra configuration is needed.
+Cloud Run injects `PORT`, so no extra configuration is needed. See `docs/DOCKER.md` for the
+image details and local testing.
+
+## Local / self-hosted
+
+Use `docker compose up --build` (see `docs/DOCKER.md`). Because `./data` is a mounted volume,
+the graph persists across restarts and no URL variable is needed.
 
 ## Troubleshooting
 
-- **`permission denied ... docker.sock`** — your user isn't in the `docker` group:
-  `sudo usermod -aG docker $USER`, then log out and back in.
-- **Container can't write to a mounted `./data`** (common on Fedora with SELinux
-  enforcing, where the error appears as `Path '/data/cache' is not readable`).
-  Relabel the bind mount with the `:z` flag:
-
-  ```yaml
-  volumes:
-    - ./data:/data:z
-  ```
-
-  `:z` allows shared access to the labeled directory; `:Z` makes it private to this
-  container. Check with `getenforce` and `ls -Z ./data`.
+- **`permission denied ... docker.sock`** — add your user to the `docker` group and log back in
+  (`sudo usermod -aG docker $USER`).
+- **Container can't write to a mounted `./data`** (Fedora/RHEL, SELinux enforcing; often shows
+  as `Path '/data/cache' is not readable`). Add `:z` to the volume: `./data:/data:z`.
 - **The graph release workflow didn't run.** Tag-push workflows are read from the *tagged
-  commit*, so a tag pointing at a commit older than `.github/workflows/release-graph.yml` will
-  not trigger it. Move the tag onto current `main`:
-
-  ```fish
-  git tag -f -a graph-<version> -m "Prebuilt graph"
-  git push --force origin graph-<version>
-  ```
-
-  Alternatively, run the workflow manually from the repository's **Actions** tab
-  (`Release graph artifact` → *Run workflow*), which takes a version input.
-- **Space shows no graph / health fails.** Confirm `HUSTRING_GRAPH_URL` is set and the asset is
-  reachable: `curl -sIL <url> | grep -i http` should show `200`.
-
+  commit*; move the tag onto current `main` (`git tag -f -a graph-<v> -m "..." && git push
+  --force origin graph-<v>`), or run **Release graph artifact** from the Actions tab.
+- **Deploy succeeds but the app shows no graph / health fails.** Confirm `HUSTRING_GRAPH_URL`
+  is set and reachable: `curl -sIL <url> | grep -i http` should show `200`.
