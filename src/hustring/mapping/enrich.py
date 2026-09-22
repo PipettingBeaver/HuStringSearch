@@ -1,19 +1,24 @@
-"""Build-time enrichment of node annotations from Ensembl BioMart.
+"""Build-time enrichment of node annotations from Ensembl.
 
 Gene names are decorative: they describe a node but do not affect the graph or the
 walk. Per ADR D10a they are fetched once, batched, and cached at build time, and any
 failure degrades gracefully (the caller keeps whatever it already had). Nothing here
 runs in the request path.
+
+Sources are tried in order: the Ensembl **REST API** first (separate infrastructure
+from BioMart, often up when BioMart is not), then **BioMart** as a fallback.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 
 from ..errors import MappingError
 from ..species import EnsemblDivision, lookup_species
 from .biomart import DEFAULT_MART, BiomartClient
+from .ensembl_rest import EnsemblRestClient
 
 GENE_NAME_ATTR = "external_gene_name"
 FALLBACK_ATTR = "description"
@@ -61,32 +66,72 @@ def fetch_gene_names(
     taxid: int,
     cache_dir: Path,
     *,
-    client: BiomartClient | None = None,
+    gene_ids: Iterable[str] | None = None,
+    rest_client: EnsemblRestClient | None = None,
+    biomart_client: BiomartClient | None = None,
     dataset: str | None = None,
     force: bool = False,
 ) -> dict[str, str]:
     """Return {ensembl_gene_id: gene_name} for the organism, cached on disk.
 
-    Raises :class:`MappingError` when the query fails; callers should treat gene
-    names as optional and continue without them.
+    ``gene_ids`` restricts the query to a known node set (recommended, and required
+    for REST bulk lookup). Without it, BioMart is used to fetch names for the whole
+    organism. Raises :class:`MappingError` if every source fails; callers should
+    treat gene names as optional and continue.
     """
     if not force:
         cached = load_cached(cache_dir, taxid)
         if cached:
             return cached
 
+    errors: list[str] = []
+    ids = list(gene_ids) if gene_ids is not None else None
+
+    if ids:
+        client = rest_client or EnsemblRestClient()
+        try:
+            mapping = client.gene_names(ids)
+            if mapping:
+                _save_cache(mapping, cache_dir, taxid)
+                return mapping
+            errors.append("Ensembl REST returned no names")
+        except MappingError as exc:
+            errors.append(f"Ensembl REST: {exc}")
+
+    try:
+        mapping = _fetch_from_biomart(taxid, cache_dir, dataset, biomart_client)
+        if mapping:
+            _save_cache(mapping, cache_dir, taxid)
+            return mapping
+        errors.append("BioMart returned no names")
+    except MappingError as exc:
+        errors.append(f"BioMart: {exc}")
+
+    raise MappingError("; ".join(errors) or "no gene-name source available")
+
+
+def _fetch_from_biomart(
+    taxid: int,
+    cache_dir: Path,
+    dataset: str | None,
+    client: BiomartClient | None,
+) -> dict[str, str]:
     resolved_dataset = dataset or dataset_for(taxid)
     if resolved_dataset is None:
-        raise MappingError(
-            f"no Ensembl dataset known for taxon {taxid}; pass an explicit dataset"
-        )
+        raise MappingError(f"no Ensembl dataset known for taxon {taxid}")
 
     if client is None:
         preset = lookup_species(taxid)
         division = preset.ensembl_division if preset else EnsemblDivision.ENSEMBL
         client = BiomartClient.for_division(division)
 
-    xml = _names_query(resolved_dataset)
+    from .biomart import build_query
+
+    xml = build_query(
+        resolved_dataset,
+        ["ensembl_gene_id", GENE_NAME_ATTR, FALLBACK_ATTR],
+        mart=DEFAULT_MART,
+    )
     frame = client.query(xml)
     if "ensembl_gene_id" not in frame.columns:
         raise MappingError(f"unexpected BioMart columns: {list(frame.columns)}")
@@ -101,17 +146,4 @@ def fetch_gene_names(
             name = row.get(FALLBACK_ATTR)
         if isinstance(name, str) and name.strip():
             mapping[gene_id] = name.strip()
-    if not mapping:
-        raise MappingError("BioMart returned no usable gene names")
-    _save_cache(mapping, cache_dir, taxid)
     return mapping
-
-
-def _names_query(dataset: str) -> str:
-    from .biomart import build_query
-
-    return build_query(
-        dataset,
-        ["ensembl_gene_id", GENE_NAME_ATTR, FALLBACK_ATTR],
-        mart=DEFAULT_MART,
-    )

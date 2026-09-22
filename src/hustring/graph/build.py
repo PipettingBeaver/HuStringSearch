@@ -94,7 +94,7 @@ def build_graph(
         raise GraphError("no nodes remained after filtering")
 
     if enrich_gene_names and config.node_granularity != NodeGranularity.AS_PROVIDED:
-        _enrich_gene_names(config.taxid, cache, annotations)
+        _enrich_gene_names(config.taxid, cache, annotations, node_ids)
 
     edges["weight"] = _normalize_weights(edges["weight"], config.weight_normalization)
     adjacency = _adjacency(edges, index, len(node_ids))
@@ -155,12 +155,13 @@ def _enrich_gene_names(
     taxid: int,
     cache: Path,
     annotations: dict[str, Annotation],
+    node_ids: list[str],
 ) -> None:
     """Best-effort gene-name enrichment; never fails the build."""
     from ..mapping.enrich import fetch_gene_names
 
     try:
-        names = fetch_gene_names(taxid, cache)
+        names = fetch_gene_names(taxid, cache, gene_ids=node_ids)
     except Exception as exc:
         import warnings
 
