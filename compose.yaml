@@ -3,7 +3,6 @@ services:
     build:
       context: .
     image: hustring:latest
-    container_name: hustring
     ports:
       - "8000:8000"
     environment:

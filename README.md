@@ -56,8 +56,8 @@ docker build -t hustring .
 docker run --rm -p 8000:8000 -v "$PWD/data:/data" hustring
 ```
 The graph is stored in the mounted `./data` volume, so later runs reuse it. Set
-`HUSTRING_AUTO_BUILD=0` to require a prebuilt graph instead. See `docs/DEPLOY.md`
-for hosted deployments.
+`HUSTRING_AUTO_BUILD=0` to require a prebuilt graph instead. See `docs/DOCKER.md`
+for a walkthrough and troubleshooting, and `docs/DEPLOY.md` for hosted deployments.
 
 ## Distributing the prebuilt graph
 

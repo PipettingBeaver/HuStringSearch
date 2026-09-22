@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -147,7 +148,46 @@ def serve(
     if reload:
         uvicorn.run("hustring.api.main:app", host=host, port=port, reload=True)
     else:
-        uvicorn.run(create_app(graph_dir), host=host, port=port)
+        uvicorn.run(
+            create_app(graph_dir),
+            host=host,
+            port=port,
+            log_config=_uvicorn_log_config(),
+        )
+
+
+def _uvicorn_log_config() -> dict[str, Any]:
+    """Uvicorn logging config that hides the container health check from access logs."""
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {"format": "%(levelname)s:     %(message)s"},
+            "access": {"format": "%(levelname)s:     %(message)s"},
+        },
+        "handlers": {
+            "default": {"formatter": "default", "class": "logging.StreamHandler"},
+            "access": {"formatter": "access", "class": "logging.StreamHandler"},
+        },
+        "loggers": {
+            "uvicorn": {"handlers": ["default"], "level": "INFO"},
+            "uvicorn.error": {"handlers": ["default"], "level": "INFO"},
+            "uvicorn.access": {
+                "handlers": ["access"],
+                "level": "INFO",
+                "filters": ["hide_health"],
+            },
+        },
+        "filters": {"hide_health": {"()": _HealthCheckFilter}},
+    }
+
+
+class _HealthCheckFilter:
+    """Drop access-log records for /api/health so they don't spam the logs."""
+
+    def filter(self, record: Any) -> bool:
+        message = record.getMessage()
+        return "/api/health" not in message and "GET /healthz" not in message
 
 
 @app.command("gradio")
