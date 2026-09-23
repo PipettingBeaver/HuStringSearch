@@ -48,7 +48,7 @@ Rebuilding from source is opt-in via `hustring build-data`.
 ## Resume here (updated 2026-09-23)
 
 State: local, Docker, and Render all work. Working tree is clean and matches
-`origin/main`. `ruff`, `mypy`, and 96 tests pass.
+`origin/main`. `ruff`, `mypy`, and 103 tests pass; CI is green.
 
 Live: https://hustringsearch.onrender.com (Render free tier, `render.yaml`).
 
@@ -60,27 +60,24 @@ Shipped recently:
   `max_edge_weight`, `weight_normalization`, `seed_weights`; the API mirrors them.
 - The graph artifact is now a STRING>=400 superset so the cutoff is meaningful.
 - Gene names: Ensembl REST primary, BioMart fallback, cached at build time.
-
-Known issue to fix next (do this first):
-1. `EnsemblRestClient.lookup_ids` has no retry. One transient HTTP 500 aborts the
-   whole enrichment, so the CI-built artifact shipped with 0 gene names. Add
-   retry with backoff (3 tries, 1s/2s/4s) around the POST.
-2. `mapping/enrich.fetch_gene_names` returns the cache wholesale when it exists.
-   If the node set grows, the new IDs are never fetched. Merge cached names with
-   a fetch for the missing IDs only.
-3. After 1 and 2: rebuild with `hustring build-data --string-threshold 400
-   --enrich-gene-names`, publish a new `graph-*` tag, and update
-   `HUSTRING_GRAPH_URL` on Render plus the pinned URL in README and
-   `docs/DEPLOY.md`.
+- `EnsemblRestClient.lookup_ids` retries transient failures (1s/2s/4s backoff,
+  3 retries). `fetch_gene_names` merges cached names with a fetch for the
+  missing IDs only, and keeps cached names when all sources fail.
 
 Artifact facts:
-- Published `graph-2026.09.23`: 19,539 nodes / 977,155 edges, min weight 0.400,
-  0 named (see issue 1). Local `data/derived/graph`: same graph, 17,318 named.
-- Previous `graph-2026.09.22`: 17,379 nodes / 286,850 edges (STRING>=700), named.
+- Published `graph-2026.09.23.1`: 19,539 nodes / 977,155 edges, min weight
+  0.400, 19,454 named (~13.7 MB). CI build verified from the release asset.
+- `graph-2026.09.23`: tag exists; its release has no assets (pre-fix CI run).
+- `graph-2026.09.22`: 17,379 nodes / 286,850 edges (STRING>=700), named.
+
+Open action:
+- Set `HUSTRING_GRAPH_URL` on Render (dashboard: Environment) to
+  https://github.com/PipettingBeaver/HuStringSearch/releases/download/graph-2026.09.23.1/hustring-graph-2026.09.23.1.tar.gz,
+  then redeploy.
 
 Do not commit `data/` (ignored) or `docs/TECH_DEBT.md` (ignored, kept local).
 
-Test recipe for the pending fix:
-- `.venv/bin/pytest tests/test_enrich.py tests/test_analysis.py`
+Test recipe:
+- `.venv/bin/pytest tests/test_enrich.py tests/test_ensembl_rest.py tests/test_analysis.py`
 - Live check: `.venv/bin/python -c "from hustring.mapping.enrich import
   fetch_gene_names; ..."` against a fresh cache dir.
