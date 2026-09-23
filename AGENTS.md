@@ -50,7 +50,8 @@ Rebuilding from source is opt-in via `hustring build-data`.
 State: local, Docker, and Render all work. Working tree is clean and matches
 `origin/main`. `ruff`, `mypy`, and 103 tests pass; CI is green.
 
-Live: https://hustringsearch.onrender.com (Render free tier, `render.yaml`).
+Live: https://hustringsearch.onrender.com (Render free tier, `render.yaml`);
+serves `graph-2026.09.23.1` (verified 2026-09-23).
 
 Shipped recently:
 - Query-time preprocessing controls in the viewer: STRING cutoff (number +
@@ -69,11 +70,7 @@ Artifact facts:
   0.400, 19,454 named (~13.7 MB). CI build verified from the release asset.
 - `graph-2026.09.23`: tag exists; its release has no assets (pre-fix CI run).
 - `graph-2026.09.22`: 17,379 nodes / 286,850 edges (STRING>=700), named.
-
-Open action:
-- Set `HUSTRING_GRAPH_URL` on Render (dashboard: Environment) to
-  https://github.com/PipettingBeaver/HuStringSearch/releases/download/graph-2026.09.23.1/hustring-graph-2026.09.23.1.tar.gz,
-  then redeploy.
+- Render `HUSTRING_GRAPH_URL` points at `graph-2026.09.23.1`.
 
 Do not commit `data/` (ignored) or `docs/TECH_DEBT.md` (ignored, kept local).
 
