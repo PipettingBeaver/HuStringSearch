@@ -20,9 +20,11 @@ class FakeRest:
         self.mapping = mapping or {}
         self.error = error
         self.calls = 0
+        self.queried: list[list[str]] = []
 
     def gene_names(self, gene_ids: list[str]) -> dict[str, str]:
         self.calls += 1
+        self.queried.append(list(gene_ids))
         if self.error is not None:
             raise self.error
         return {gid: self.mapping[gid] for gid in gene_ids if gid in self.mapping}
@@ -109,6 +111,29 @@ def test_force_bypasses_cache(tmp_path: Path) -> None:
     rest = FakeRest({"ENSG1": "TP53"})
     enrich.fetch_gene_names(9606, tmp_path, gene_ids=["ENSG1"], rest_client=rest, force=True)
     assert rest.calls == 1
+
+
+def test_growing_node_set_fetches_only_missing_ids(tmp_path: Path) -> None:
+    enrich.fetch_gene_names(9606, tmp_path, gene_ids=["ENSG1"], rest_client=FakeRest({"ENSG1": "TP53"}))
+    rest = FakeRest({"ENSG2": "BRCA1"})
+    names = enrich.fetch_gene_names(
+        9606, tmp_path, gene_ids=["ENSG1", "ENSG2"], rest_client=rest
+    )
+    assert names == {"ENSG1": "TP53", "ENSG2": "BRCA1"}
+    assert rest.queried == [["ENSG2"]]
+    assert enrich.load_cached(tmp_path, 9606) == names
+
+
+def test_cached_names_survive_when_sources_fail(tmp_path: Path) -> None:
+    enrich.fetch_gene_names(9606, tmp_path, gene_ids=["ENSG1"], rest_client=FakeRest({"ENSG1": "TP53"}))
+    names = enrich.fetch_gene_names(
+        9606,
+        tmp_path,
+        gene_ids=["ENSG1", "ENSG2"],
+        rest_client=FakeRest(error=MappingError("REST down")),
+        biomart_client=FakeBiomart(error=MappingError("BioMart down")),
+    )
+    assert names == {"ENSG1": "TP53"}
 
 
 def test_biomart_only_path_without_gene_ids(tmp_path: Path) -> None:

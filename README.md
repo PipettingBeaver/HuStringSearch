@@ -77,10 +77,10 @@ The merged graph is derived data and is **not committed** to `main`. Publish it 
 Release asset so a deployment can start without rebuilding:
 
 ```bash
-scripts/package_graph.sh data/derived/graph 2026.09.21
-gh release create graph-2026.09.22 dist/hustring-graph-2026.09.22.tar.gz \
+scripts/package_graph.sh data/derived/graph 2026.09.23.1
+gh release create graph-2026.09.23.1 dist/hustring-graph-2026.09.23.1.tar.gz \
   --title "Prebuilt human graph (HuRI + STRING)" \
-  --notes "ENSG-canonical, STRING combined score >= 700. Unpack into data/derived/graph."
+  --notes "ENSG-canonical, STRING combined score >= 400. Unpack into data/derived/graph."
 ```
 
 Pushing a `graph-*` tag (or running the *Release graph artifact* workflow manually) builds and

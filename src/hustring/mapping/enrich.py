@@ -76,24 +76,33 @@ def fetch_gene_names(
 
     ``gene_ids`` restricts the query to a known node set (recommended, and required
     for REST bulk lookup). Without it, BioMart is used to fetch names for the whole
-    organism. Raises :class:`MappingError` if every source fails; callers should
-    treat gene names as optional and continue.
+    organism. Cached names are kept and merged with a fetch for the IDs that are
+    not cached yet, so a growing node set never refetches known names. Raises
+    :class:`MappingError` if every source fails and nothing is cached; callers
+    should treat gene names as optional and continue.
     """
-    if not force:
-        cached = load_cached(cache_dir, taxid)
+    cached = {} if force else load_cached(cache_dir, taxid)
+    ids = list(gene_ids) if gene_ids is not None else None
+
+    if ids is None:
         if cached:
+            return cached
+        missing: list[str] | None = None
+    else:
+        missing = [gene_id for gene_id in ids if gene_id not in cached]
+        if not missing:
             return cached
 
     errors: list[str] = []
-    ids = list(gene_ids) if gene_ids is not None else None
 
-    if ids:
+    if missing:
         client = rest_client or EnsemblRestClient()
         try:
-            mapping = client.gene_names(ids)
-            if mapping:
-                _save_cache(mapping, cache_dir, taxid)
-                return mapping
+            fetched = client.gene_names(missing)
+            if fetched:
+                merged = {**cached, **fetched}
+                _save_cache(merged, cache_dir, taxid)
+                return merged
             errors.append("Ensembl REST returned no names")
         except MappingError as exc:
             errors.append(f"Ensembl REST: {exc}")
@@ -101,12 +110,15 @@ def fetch_gene_names(
     try:
         mapping = _fetch_from_biomart(taxid, cache_dir, dataset, biomart_client)
         if mapping:
-            _save_cache(mapping, cache_dir, taxid)
-            return mapping
+            merged = {**cached, **mapping}
+            _save_cache(merged, cache_dir, taxid)
+            return merged
         errors.append("BioMart returned no names")
     except MappingError as exc:
         errors.append(f"BioMart: {exc}")
 
+    if cached:
+        return cached
     raise MappingError("; ".join(errors) or "no gene-name source available")
 
 

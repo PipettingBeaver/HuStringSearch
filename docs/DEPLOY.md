@@ -33,15 +33,15 @@ as a GitHub Release asset. Then point `HUSTRING_GRAPH_URL` at it.
 1. Publish the asset. You can do this automatically with a `graph-*` tag, or manually:
 
    ```bash
-   scripts/package_graph.sh data/derived/graph 2026.09.22
-   gh release create graph-2026.09.22 dist/hustring-graph-2026.09.22.tar.gz \
+   scripts/package_graph.sh data/derived/graph 2026.09.23.1
+   gh release create graph-2026.09.23.1 dist/hustring-graph-2026.09.23.1.tar.gz \
      --title "Prebuilt human graph (HuRI + STRING)"
    ```
 
 2. Use the asset URL:
 
    ```
-   https://github.com/PipettingBeaver/HuStringSearch/releases/download/graph-2026.09.22/hustring-graph-2026.09.22.tar.gz
+   https://github.com/PipettingBeaver/HuStringSearch/releases/download/graph-2026.09.23.1/hustring-graph-2026.09.23.1.tar.gz
    ```
 
 ## Render (recommended, free)
