@@ -30,6 +30,10 @@ class SubnetworkRequest(BaseModel):
     max_iter: int = Field(1000, ge=1)
     tol: float = Field(1e-6, gt=0)
     exclude_seeds: bool = True
+    min_edge_weight: float | None = Field(None, ge=0.0, le=1.0)
+    max_edge_weight: float | None = Field(None, ge=0.0, le=1.0)
+    weight_normalization: Literal["none", "linear", "log"] = "none"
+    seed_weights: list[float] | None = None
 
 
 class RankedNodeModel(BaseModel):
@@ -194,6 +198,10 @@ def create_app(
             threshold=request.threshold,
             hops=request.hops,
             exclude_seeds=request.exclude_seeds,
+            min_edge_weight=request.min_edge_weight,
+            max_edge_weight=request.max_edge_weight,
+            weight_normalization=request.weight_normalization,
+            seed_weights=request.seed_weights,
         )
         return result.to_dict()
 

@@ -55,3 +55,55 @@ def test_induced_edges_only_internal() -> None:
     pairs = sorted(zip(rows.tolist(), cols.tolist(), weights.tolist(), strict=True))
     assert pairs == [(0, 1, 1.0), (1, 2, 1.0)]
     assert len(weights) == 2
+
+
+def test_filter_edges_keeps_band() -> None:
+    from hustring.core.subgraph import filter_edges
+
+    adjacency = sp.csr_matrix(
+        (
+            np.array([0.2, 0.5, 0.9, 0.5, 0.2, 0.9]),
+            (
+                np.array([0, 1, 2, 0, 1, 2]),
+                np.array([1, 2, 0, 2, 0, 1]),
+            ),
+        ),
+        shape=(3, 3),
+    )
+    filtered = filter_edges(adjacency, min_weight=0.4)
+    # only the 0.5 and 0.9 edges remain
+    assert sorted(filtered.data.tolist()) == [0.5, 0.5, 0.9, 0.9]
+
+
+def test_filter_edges_max_bound() -> None:
+    from hustring.core.subgraph import filter_edges
+
+    adjacency = sp.csr_matrix(
+        (np.array([0.2]), (np.array([0]), np.array([1]))), shape=(2, 2)
+    )
+    # make it symmetric without summing duplicates
+    adjacency = adjacency + adjacency.T
+    filtered = filter_edges(adjacency, max_weight=0.5)
+    assert filtered.data.tolist() == [0.2, 0.2]
+
+
+def test_normalize_weights_linear_and_log() -> None:
+    from hustring.core.subgraph import normalize_weights
+
+    adjacency = sp.csr_matrix(
+        (np.array([1.0, 3.0]), (np.array([0, 1]), np.array([1, 0]))), shape=(2, 2)
+    )
+    linear = normalize_weights(adjacency, "linear")
+    assert sorted(linear.data.tolist()) == [0.0, 1.0]
+    logged = normalize_weights(adjacency, "log")
+    assert logged.data.max() > logged.data.min()
+
+
+def test_normalize_weights_none_is_identity() -> None:
+    from hustring.core.subgraph import normalize_weights
+
+    adjacency = sp.csr_matrix(
+        (np.array([0.3]), (np.array([0]), np.array([1]))), shape=(2, 2)
+    )
+    same = normalize_weights(adjacency, "none")
+    assert same.data.tolist() == [0.3]

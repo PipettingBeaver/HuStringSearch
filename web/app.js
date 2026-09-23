@@ -59,11 +59,25 @@ async function init() {
 
   initTooltips();
   initAbout();
+  initWeightControl();
   $("run").addEventListener("click", run);
   $("seeds").addEventListener("input", debounce(autocomplete, 200));
   $("seeds").addEventListener("keydown", (event) => {
     if (event.key === "Enter") run();
   });
+}
+
+function initWeightControl() {
+  const number = $("min_weight");
+  const range = $("min_weight_range");
+  const sync = (value) => {
+    const clamped = clamp01(Number(value));
+    number.value = clamped.toFixed(2);
+    range.value = clamped;
+  };
+  number.addEventListener("input", () => sync(number.value));
+  range.addEventListener("input", () => sync(range.value));
+  sync(number.value);
 }
 
 function initTooltips() {
@@ -135,6 +149,11 @@ async function autocomplete() {
   }
 }
 
+function clamp01(value) {
+  if (Number.isNaN(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
 function parseSeeds() {
   return $("seeds").value
     .split(/[,\s]+/)
@@ -156,6 +175,8 @@ async function run() {
     hops: Number($("hops").value),
     restart_prob: Number($("restart").value),
     exclude_seeds: $("exclude").checked,
+    min_edge_weight: clamp01(Number($("min_weight").value)),
+    weight_normalization: $("normalize").value,
   };
   setBusy(true);
   setStatus("Running RWR…");

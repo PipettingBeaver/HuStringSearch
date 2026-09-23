@@ -84,3 +84,45 @@ def test_to_cytoscape_payload_shape() -> None:
     assert {"id", "source", "target"} <= set(payload["edges"][0])
     assert payload["counts"]["nodes"] == len(result.ranked)
     assert all("color" in node and "source_class" in node for node in payload["nodes"])
+
+
+def test_min_edge_weight_changes_walk() -> None:
+    """A higher cutoff removes weak edges, so the result must change."""
+    import pandas as pd
+    import scipy.sparse as sp
+
+    from hustring.analysis import rank_target_centered
+    from hustring.graph import Graph
+
+    # G0 -- G1 (strong) and G1 -- G2 (weak); G2 is only reachable via the weak edge
+    adjacency = sp.csr_matrix(
+        np.array([[0.0, 0.9, 0.0], [0.9, 0.0, 0.3], [0.0, 0.3, 0.0]])
+    )
+    edges = pd.DataFrame(
+        {"a": ["G0", "G1"], "b": ["G1", "G2"], "weight": [0.9, 0.3], "source": ["toy", "toy"]}
+    )
+    graph = Graph(["ENSG0", "ENSG1", "ENSG2"], ["G0", "G1", "G2"], [""] * 3, adjacency, edges, {})
+
+    with_weak = rank_target_centered(graph, ["G0"], top_k=3)
+    without_weak = rank_target_centered(graph, ["G0"], top_k=3, min_edge_weight=0.5)
+
+    scores_with = {n.symbol: n.score for n in with_weak.ranked}
+    scores_without = {n.symbol: n.score for n in without_weak.ranked}
+
+    # G2 is reachable only through the weak edge, so its score collapses to 0.
+    assert scores_with["G2"] > 0
+    assert scores_without["G2"] == 0
+    assert scores_with["G1"] == scores_without["G1"]
+    assert without_weak.parameters["min_edge_weight"] == 0.5
+
+
+def test_weight_normalization_recorded_in_parameters() -> None:
+    result = rank_target_centered(path_graph(), ["G0"], top_k=2, weight_normalization="log")
+    assert result.parameters["weight_normalization"] == "log"
+
+
+def test_seed_weights_reach_parameters() -> None:
+    result = rank_target_centered(
+        path_graph(), ["G0", "G3"], top_k=1, seed_weights=[3.0, 1.0]
+    )
+    assert result.parameters["seed_weights"] == [3.0, 1.0]

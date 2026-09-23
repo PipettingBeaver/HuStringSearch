@@ -36,7 +36,7 @@ jobs:
           pip install -e ".[web]"
 
       - name: Build graph
-        run: hustring build-data --enrich-gene-names --output data/derived/graph --cache data/cache
+        run: hustring build-data --enrich-gene-names --string-threshold 400 --output data/derived/graph --cache data/cache
 
       - name: Resolve tag
         id: tag

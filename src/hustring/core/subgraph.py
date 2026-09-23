@@ -85,6 +85,42 @@ def k_hop_nodes(
     return np.flatnonzero(visited)
 
 
+def filter_edges(
+    adjacency: Matrix,
+    min_weight: float | None = None,
+    max_weight: float | None = None,
+) -> sp.csr_matrix:
+    """Return a copy of ``adjacency`` with edges outside the weight band removed."""
+    graph = sp.csr_matrix(adjacency)
+    if min_weight is None and max_weight is None:
+        return graph
+    data = graph.data
+    keep = np.ones(data.shape[0], dtype=bool)
+    if min_weight is not None:
+        keep &= data >= min_weight
+    if max_weight is not None:
+        keep &= data <= max_weight
+    graph.data = np.where(keep, data, 0.0)
+    graph.eliminate_zeros()
+    return graph
+
+
+def normalize_weights(adjacency: Matrix, mode: str) -> sp.csr_matrix:
+    """Rescale edge weights in place by 'none', 'linear', or 'log'."""
+    graph = sp.csr_matrix(adjacency)
+    if mode in ("none", "", None) or graph.nnz == 0:
+        return graph
+    data = graph.data
+    if mode == "log":
+        data = np.log1p(data)
+    low, high = float(data.min()), float(data.max())
+    if high <= low:
+        graph.data = np.zeros_like(data)
+    else:
+        graph.data = (data - low) / (high - low)
+    return graph
+
+
 def induced_edges(
     adjacency: Matrix,
     nodes: Sequence[int] | Array,

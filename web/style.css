@@ -51,6 +51,15 @@ main {
 }
 
 .panel h2 { font-size: 0.85rem; text-transform: uppercase; color: var(--muted); margin: 0 0 0.5rem; }
+.group {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 1.1rem 0 0.2rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
 .panel label { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
 .panel .row { display: flex; align-items: center; gap: 0.5rem; }
 
@@ -62,6 +71,8 @@ input, select, button {
   border-radius: 6px;
   padding: 0.4rem 0.5rem;
 }
+
+input[type="range"] { padding: 0; margin-top: 0.15rem; }
 
 button {
   margin-top: 0.9rem;

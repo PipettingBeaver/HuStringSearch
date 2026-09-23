@@ -115,6 +115,49 @@
           >
         </label>
 
+        <h3 class="group">
+          Preprocessing
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for preprocessing controls"
+            data-tip="These controls change the graph for this query only. No rebuild is needed. The shipped graph keeps every edge down to STRING score 400, so the cutoff can move freely."
+            >?</span
+          >
+        </h3>
+
+        <label for="min_weight">
+          STRING cutoff
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for STRING cutoff"
+            data-tip="Keep only edges at or above this confidence. Lower values add weaker, noisier links (more recall). Higher values keep only strong links (more precision). 0.7 is the usual high-confidence level; 0.4 includes low-confidence associations."
+            >?</span
+          >
+        </label>
+        <input id="min_weight" type="number" value="0.7" step="0.05" min="0.4" max="1" />
+        <input id="min_weight_range" type="range" value="0.7" step="0.05" min="0.4" max="1" />
+
+        <label for="normalize">
+          Edge weight scaling
+          <span
+            class="help"
+            tabindex="0"
+            role="button"
+            aria-label="Help for edge weight scaling"
+            data-tip="How edge weights are rescaled before the walk. 'None' uses the raw confidence. 'Log' compresses high-confidence edges so they do not dominate. 'Linear' spreads weights from 0 to 1. This changes how far probability diffuses."
+            >?</span
+          >
+        </label>
+        <select id="normalize">
+          <option value="none">None (raw confidence)</option>
+          <option value="log">Log</option>
+          <option value="linear">Linear</option>
+        </select>
+
         <button id="run">Run RWR</button>
         <p id="status" class="muted"></p>
         <p class="muted small">

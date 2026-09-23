@@ -10,7 +10,14 @@ import numpy as np
 
 from .config import RWRConfig
 from .core.rwr import rwr
-from .core.subgraph import induced_edges, k_hop_nodes, threshold_nodes, top_k_nodes
+from .core.subgraph import (
+    filter_edges,
+    induced_edges,
+    k_hop_nodes,
+    normalize_weights,
+    threshold_nodes,
+    top_k_nodes,
+)
 from .errors import SeedError
 from .graph.container import Graph
 
@@ -196,15 +203,31 @@ def rank_target_centered(
     hops: int | None = None,
     exclude_seeds: bool = True,
     include_edges: bool = True,
+    min_edge_weight: float | None = None,
+    max_edge_weight: float | None = None,
+    weight_normalization: str = "none",
+    seed_weights: Sequence[float] | None = None,
 ) -> SubnetworkResult:
-    """Run RWR from the seed(s) and extract a target-centered subnetwork."""
-    cfg = rwr_config or RWRConfig()
-    weights = None
-    indices, resolved, missing, resolved_weights = resolve_seed_indices(graph, seeds)
-    if resolved_weights:
-        weights = resolved_weights
+    """Run RWR from the seed(s) and extract a target-centered subnetwork.
 
-    scores = rwr(graph.adjacency, indices, weights or None, config=cfg)
+    Query-time controls (``min_edge_weight``, ``max_edge_weight``,
+    ``weight_normalization``, ``seed_weights``) adjust the graph without a rebuild.
+    The graph artifact must keep edges below any cutoff you intend to apply.
+    """
+    cfg = rwr_config or RWRConfig()
+    indices, resolved, missing, resolved_weights = resolve_seed_indices(
+        graph, seeds, seed_weights
+    )
+    weights = resolved_weights or None
+
+    if min_edge_weight is not None or max_edge_weight is not None:
+        adjacency = filter_edges(graph.adjacency, min_edge_weight, max_edge_weight)
+    else:
+        adjacency = graph.adjacency.tocsr()
+    if weight_normalization and weight_normalization != "none":
+        adjacency = normalize_weights(adjacency, weight_normalization)
+
+    scores = rwr(adjacency, indices, weights, config=cfg)
     exclude = indices if exclude_seeds else []
 
     if mode == "top_k":
@@ -216,7 +239,7 @@ def rank_target_centered(
     elif mode == "k_hop":
         if hops is None:
             raise SeedError("k_hop mode requires a hop count")
-        reached = k_hop_nodes(graph.adjacency, indices, hops)
+        reached = k_hop_nodes(adjacency, indices, hops)
         reached = np.setdiff1d(reached, np.asarray(exclude, dtype=int))
         selected = reached[np.argsort(-scores[reached])]
     else:
@@ -235,7 +258,7 @@ def rank_target_centered(
 
     edges: list[dict[str, Any]] = []
     if include_edges and len(selected) > 1:
-        row, col, weight = induced_edges(graph.adjacency, selected)
+        row, col, weight = induced_edges(adjacency, selected)
         for a, b, w in zip(row, col, weight, strict=True):
             edges.append(
                 {
@@ -254,6 +277,10 @@ def rank_target_centered(
         "threshold": threshold if mode == "threshold" else None,
         "hops": hops if mode == "k_hop" else None,
         "exclude_seeds": exclude_seeds,
+        "min_edge_weight": min_edge_weight,
+        "max_edge_weight": max_edge_weight,
+        "weight_normalization": weight_normalization,
+        "seed_weights": list(seed_weights) if seed_weights else None,
     }
     return SubnetworkResult(
         seeds=list(seeds),
