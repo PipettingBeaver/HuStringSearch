@@ -1,4 +1,4 @@
-# HuStringSearch
+# HuStringSearch - Merge of HuRi & STRING databases with Random Walk w/ Restart Search
 
 [![CI](https://github.com/PipettingBeaver/HuStringSearch/actions/workflows/ci.yml/badge.svg)](https://github.com/PipettingBeaver/HuStringSearch/actions/workflows/ci.yml)
 
