@@ -7,16 +7,9 @@ Merge multiple protein interactome sources (**HuRI**, **STRING**, **BioGRID**,
 **target-centered Random Walk with Restart (RWR)** to isolate and visualize
 functional subnetworks in an interactive web viewer.
 
-Online demo: **https://hustringsearch.onrender.com**. The same Docker image runs locally,
-on Render, or on a container host. Species is a parameter (NCBI taxon ID) — human is a
-default, not an assumption.
+<img width="3830" height="1852" alt="image" src="https://github.com/user-attachments/assets/8eab986c-3429-4dfa-ad0e-fb555eec1f23" />
+Screenshot of HuStringSearch UI showing local graph built around TP53 and MDM2 as input target genes.
 
-<!-- TODO (PipettingBeaver): write this section in your own words.
-     Talk about why the project exists, what it does, and what you learned.
-     Add a screenshot of the hosted UI below the intro, for example:
-     ![HuStringSearch viewer](docs/images/viewer.png)
-     The hosted UI is the same as running locally with Docker.
--->
 ## Overview
 HuStringSearch is an independent class project remade from ground up to be
 accessible online and as proof of concept for me to learn Docker and online hosting.
@@ -24,7 +17,9 @@ Core RWR + config are implemented and tested; data sources, mapping, API, and UI
 are in progress. See `docs/DECISIONS.md` for more design log info. The web UI is
 deliberately basic, meant for student-level exploration as it was an undergrad project.
 
-## Run from scratch (zsh)
+Online demo available at: **https://hustringsearch.onrender.com**
+
+## Alternatively, build locally from scratch (zsh)
 ```zsh
 git clone https://github.com/PipettingBeaver/HuStringSearch.git
 cd HuStringSearch
@@ -54,7 +49,7 @@ If you'd rather not activate the venv, call the entrypoint directly:
 The one-command path (builds the image and runs the viewer, building the graph on
 first start):
 ```bash
-docker compose up --build      # then open http://localhost:8000
+docker compose up --build      # and then open http://localhost:8000
 ```
 Or a single container:
 ```bash
@@ -67,7 +62,7 @@ for a walkthrough and troubleshooting, and `docs/DEPLOY.md` for hosted deploymen
 
 ## Distributing the prebuilt graph
 
-The merged graph is derived data and is **not committed** to `main`. Publish it as a GitHub
+The merged graph is derived data and is not committed to `main`. Publish it as a GitHub
 Release asset so a deployment can start without rebuilding:
 
 ```bash
