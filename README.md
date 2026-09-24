@@ -2,11 +2,6 @@
 
 [![CI](https://github.com/PipettingBeaver/HuStringSearch/actions/workflows/ci.yml/badge.svg)](https://github.com/PipettingBeaver/HuStringSearch/actions/workflows/ci.yml)
 
-Merge multiple protein interactome sources (**HuRI**, **STRING**, **BioGRID**,
-**IntAct**, custom overlays) onto a shared identifier space and run a
-**target-centered Random Walk with Restart (RWR)** to isolate and visualize
-functional subnetworks in an interactive web viewer.
-
 <img width="3830" height="1852" alt="image" src="https://github.com/user-attachments/assets/8eab986c-3429-4dfa-ad0e-fb555eec1f23" />
 Screenshot of HuStringSearch UI showing local graph built around TP53 and MDM2 as input target genes.
 
