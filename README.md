@@ -3,13 +3,14 @@
 [![CI](https://github.com/PipettingBeaver/HuStringSearch/actions/workflows/ci.yml/badge.svg)](https://github.com/PipettingBeaver/HuStringSearch/actions/workflows/ci.yml)
 
 <img width="3830" height="1852" alt="image" src="https://github.com/user-attachments/assets/8eab986c-3429-4dfa-ad0e-fb555eec1f23" />
-Screenshot of HuStringSearch UI showing local graph built around TP53 and MDM2 as input target genes.
+Screenshot of HuStringSearch UI showing local graph built around TP53 and MDM2 as input target genes (built with `--string-threshold 400 --enrich-gene-names`).
 
 ## Overview
 HuStringSearch is an independent class project remade from ground up to be
 accessible online and as proof of concept for me to learn Docker and online hosting.
-Core RWR + config are implemented and tested; data sources, mapping, API, and UI
-are in progress. See `docs/DECISIONS.md` for more design log info. The web UI is
+Core RWR + config, data sources, mapping, API, and UI are implemented and tested;
+some optional sources are still being validated against live data. See
+`docs/DECISIONS.md` for more design log info. The web UI is
 deliberately basic, meant for student-level exploration as it was an undergrad project.
 
 Online demo available at: **https://hustringsearch.onrender.com**
@@ -52,7 +53,8 @@ docker build -t hustring .
 docker run --rm -p 8000:8000 -v "$PWD/data:/data" hustring
 ```
 The graph is stored in the mounted `./data` volume, so later runs reuse it. Set
-`HUSTRING_AUTO_BUILD=0` to require a prebuilt graph instead. See `docs/DOCKER.md`
+`HUSTRING_AUTO_BUILD=0` to skip the first-run build; then provide a prebuilt graph
+via `HUSTRING_GRAPH_URL` or the mounted volume. See `docs/DOCKER.md`
 for a walkthrough and troubleshooting, and `docs/DEPLOY.md` for hosted deployments.
 
 ## Distributing the prebuilt graph
