@@ -18,17 +18,11 @@ default, not an assumption.
      The hosted UI is the same as running locally with Docker.
 -->
 ## Overview
-
-> **Placeholder — to be written.** A short description of the project in the author's
-> own words: the goal, the motivation, and the intended use. A screenshot of the hosted
-> viewer goes here.
-
-## Status
-Early scaffolding and remake. Was a class project remade from ground up to be
+HuStringSearch is an independent class project remade from ground up to be
 accessible online and as proof of concept for me to learn Docker and online hosting.
 Core RWR + config are implemented and tested; data sources, mapping, API, and UI
 are in progress. See `docs/DECISIONS.md` for more design log info. The web UI is
-deliberately **basic** — serviceable for student-level exploration, with room to grow.
+deliberately basic, meant for student-level exploration as it was an undergrad project.
 
 ## Run from scratch (zsh)
 ```zsh
