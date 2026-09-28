@@ -13,7 +13,9 @@ some optional sources are still being validated against live data. See
 `docs/DECISIONS.md` for more design log info. The web UI is
 deliberately basic, meant for student-level exploration as it was an undergrad project.
 
-Online demo available at: **https://hustringsearch.onrender.com**
+Online demo available at: **https://hustringsearch.onrender.com** (free tier: the
+first visit after an idle period can take ~30-60 s to wake and load the graph;
+later requests are fast).
 
 ## Alternatively, build locally from scratch (zsh)
 ```zsh

@@ -58,7 +58,7 @@ Live demo: **https://hustringsearch.onrender.com**
 
 Notes:
 - A free service sleeps after about 15 minutes without traffic. The next request wakes it. This
-  takes a few seconds, plus the graph fetch of about 5 MB.
+  takes up to about a minute (measured about 52 s), including the graph fetch of about 14 MB.
 - The Render free tier gives the container an ephemeral disk. So the container gets the graph
   and does not build it.
 
